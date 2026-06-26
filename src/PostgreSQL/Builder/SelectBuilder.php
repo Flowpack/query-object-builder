@@ -21,10 +21,14 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * The specific builders extend this base class, so they keep access to all the
  * generic clause methods (`select()`, `from()`, `join()`, ...).
  */
-class SelectBuilder implements InnerSqlWriter
+class SelectBuilder implements InnerSqlWriter, WithQuery
 {
+    /**
+     * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
+     */
     public function __construct(
         protected SelectQueryParts $parts = new SelectQueryParts(),
+        protected array $withQueries = [],
     ) {
     }
 
@@ -101,6 +105,28 @@ class SelectBuilder implements InnerSqlWriter
     }
 
     /**
+     * Add a WHERE condition. Multiple calls are joined with AND.
+     */
+    public function where(Exp $cond): SelectBuilder
+    {
+        $parts = clone $this->parts;
+        $parts->whereConjunction[] = $cond;
+
+        return $this->into(SelectBuilder::class, $parts);
+    }
+
+    /**
+     * Add an ORDER BY expression (refine it via {@see OrderBySelectBuilder}).
+     */
+    public function orderBy(Exp $exp): OrderBySelectBuilder
+    {
+        $parts = clone $this->parts;
+        $parts->orderBys[] = new OrderByClause($exp);
+
+        return $this->into(OrderBySelectBuilder::class, $parts);
+    }
+
+    /**
      * Create a new builder of the given type carrying the given parts.
      *
      * This is how the type-state transitions are implemented: the state is
@@ -112,7 +138,7 @@ class SelectBuilder implements InnerSqlWriter
      */
     protected function into(string $class, SelectQueryParts $parts): SelectBuilder
     {
-        return new $class($parts);
+        return new $class($parts, $this->withQueries);
     }
 
     // --- SqlWriter / InnerSqlWriter
@@ -132,9 +158,45 @@ class SelectBuilder implements InnerSqlWriter
      */
     public function innerWriteSql(SqlBuilder $sb): void
     {
+        if ($this->withQueries !== []) {
+            $this->writeWithQueries($sb);
+        }
+
         if (!$this->parts->isEmpty()) {
             $this->writeSelectParts($sb, $this->parts);
         }
+
+        if ($this->parts->orderBys !== []) {
+            $sb->writeString(' ORDER BY ');
+            foreach ($this->parts->orderBys as $i => $clause) {
+                if ($i > 0) {
+                    $sb->writeString(',');
+                }
+                $clause->writeSql($sb);
+            }
+        }
+    }
+
+    private function writeWithQueries(SqlBuilder $sb): void
+    {
+        $hasRecursive = false;
+        foreach ($this->withQueries as $w) {
+            if ($w->recursive) {
+                $hasRecursive = true;
+                break;
+            }
+        }
+
+        // From the docs: when there are multiple queries in the WITH clause,
+        // RECURSIVE is written only once, immediately after WITH.
+        $sb->writeString($hasRecursive ? 'WITH RECURSIVE ' : 'WITH ');
+        foreach ($this->withQueries as $i => $w) {
+            if ($i > 0) {
+                $sb->writeString(',');
+            }
+            $w->writeSql($sb);
+        }
+        $sb->writeString(' ');
     }
 
     private function writeSelectParts(SqlBuilder $sb, SelectQueryParts $parts): void
@@ -169,6 +231,13 @@ class SelectBuilder implements InnerSqlWriter
 
                 $fromItem->writeSql($sb);
             }
+        }
+
+        if ($parts->whereConjunction !== []) {
+            $sb->writeString($s . ' WHERE ');
+            $s = '';
+
+            Junction::and(...$parts->whereConjunction)->writeSql($sb);
         }
 
         if ($s !== '') {

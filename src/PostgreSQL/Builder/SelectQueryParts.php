@@ -15,23 +15,28 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * {@see FromItem} or {@see OutputExpr}), that element must be cloned as well
  * before mutating it, otherwise the change would leak into the original builder.
  *
- * Only the parts needed so far are present; further clauses (WHERE, GROUP BY,
- * ORDER BY, ...) will be added here as the builder grows.
+ * Only the parts needed so far are present; further clauses (GROUP BY, HAVING,
+ * LIMIT, ...) will be added here as the builder grows.
  */
 final class SelectQueryParts
 {
     /**
      * @param list<OutputExpr> $selectList
      * @param list<FromItem> $from
+     * @param list<Exp> $whereConjunction the WHERE conditions, joined with AND
+     * @param list<OrderByClause> $orderBys
      */
     public function __construct(
         public array $selectList = [],
         public array $from = [],
+        public array $whereConjunction = [],
+        public array $orderBys = [],
     ) {
     }
 
     public function isEmpty(): bool
     {
-        return $this->selectList === [] && $this->from === [];
+        return $this->selectList === [] && $this->from === []
+            && $this->whereConjunction === [] && $this->orderBys === [];
     }
 }

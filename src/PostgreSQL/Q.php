@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Flowpack\QueryObjectBuilder\PostgreSQL;
 
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Arg;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\IdentExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\QueryBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SelectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SelectSelectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SqlWriter;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithQueryItem;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithWithBuilder;
 
 /**
  * Entry point (facade) for building PostgreSQL queries.
@@ -38,6 +41,30 @@ final class Q
     public static function n(string $s): IdentExp
     {
         return IdentExp::n($s);
+    }
+
+    /**
+     * Start a WITH clause. Supply the query body via {@see WithWithBuilder::as()}.
+     */
+    public static function with(string $queryName): WithWithBuilder
+    {
+        return new WithWithBuilder([new WithQueryItem(false, $queryName)]);
+    }
+
+    /**
+     * Start a WITH RECURSIVE clause.
+     */
+    public static function withRecursive(string $queryName): WithWithBuilder
+    {
+        return new WithWithBuilder([new WithQueryItem(true, $queryName)]);
+    }
+
+    /**
+     * Create a bound argument expression (a positional placeholder).
+     */
+    public static function arg(mixed $argument): Arg
+    {
+        return new Arg($argument);
     }
 
     /**

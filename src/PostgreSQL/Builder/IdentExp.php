@@ -13,7 +13,7 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  *
  * Port of the Go `builder.IdentExp` / `builder.N`.
  */
-final class IdentExp implements Exp, FromExp
+final class IdentExp extends ExpBase implements FromExp
 {
     /**
      * Validates a (possibly dotted, possibly quoted) PostgreSQL identifier.

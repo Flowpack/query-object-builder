@@ -29,4 +29,57 @@ class SelectBuilderTest extends TestCase
             $q,
         );
     }
+
+    #[Test]
+    public function withJson(): void
+    {
+        $myCategory = 'SQL Hacks';
+
+        $q = Q::with('author_json')->as(
+            Q::select(
+                Q::n('authors.author_id'),
+            )
+                ->select(
+                    Q\Func::jsonBuildObject()
+                        ->prop('id', Q::n('authors.author_id'))
+                        ->prop('name', Q::n('authors.name')),
+                )->as('json')
+                ->from(Q::n('authors')),
+        )
+            ->select(
+                Q::n('posts.post_id'),
+                Q\Func::jsonBuildObject()
+                    ->prop('title', Q::n('posts.title'))
+                    ->prop('author', Q::n('author_json.json')),
+            )
+            ->from(Q::n('posts'))
+            ->leftJoin(Q::n('author_json'))->on(Q::n('posts.author_id')->eq(Q::n('author_json.author_id')))
+            ->where(Q::n('posts.category')->eq(Q::arg($myCategory)))
+            ->orderBy(Q::n('posts.created_at'))->desc()->nullsLast();
+
+        $this->assertSqlWriterEquals(
+            // language=PostgreSQL
+            <<<'SQL'
+            WITH author_json AS (
+                SELECT
+                    authors.author_id,
+                    json_build_object('id', authors.author_id, 'name', authors.name) AS json
+                FROM
+                    authors
+            )
+            SELECT
+                posts.post_id,
+                json_build_object('title', posts.title, 'author', author_json.json)
+            FROM
+                posts
+                LEFT JOIN author_json ON posts.author_id = author_json.author_id
+            WHERE
+                posts.category = $1
+            ORDER BY
+                posts.created_at DESC NULLS LAST
+            SQL,
+            [$myCategory],
+            $q,
+        );
+    }
 }
