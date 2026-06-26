@@ -1,0 +1,58 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "github:NixOS/nixpkgs/nixpkgs-unstable": {
+      "last_modified": "2026-06-16T10:57:20Z",
+      "resolved": "github:NixOS/nixpkgs/3e41b24abd260e8f71dbe2f5737d24122f972158?lastModified=1781607440&narHash=sha256-rxO%2Buc%2FKFbSJp%2BpgyXRuAX6QlG9hJdnt0BXpEQRXY%2BU%3D"
+    },
+    "php@8.4": {
+      "last_modified": "2026-06-08T15:01:26Z",
+      "plugin_version": "0.0.3",
+      "resolved": "github:NixOS/nixpkgs/8c3cede7ddc26bd659d2d383b5610efbd2c7a16e#php",
+      "source": "devbox-search",
+      "version": "8.4.22",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/969gnibi2748k17dh55k238g9fsyblwg-php-with-extensions-8.4.22",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/969gnibi2748k17dh55k238g9fsyblwg-php-with-extensions-8.4.22"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8rlbiblsxj276xp5c1iw0yr8jk9x0ngy-php-with-extensions-8.4.22",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/8rlbiblsxj276xp5c1iw0yr8jk9x0ngy-php-with-extensions-8.4.22"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/7ddhy88xg011g7z6b4hn0ilniakh8pf6-php-with-extensions-8.4.22",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/7ddhy88xg011g7z6b4hn0ilniakh8pf6-php-with-extensions-8.4.22"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xkm7zawfag0qzdbwfaasbiy5102aingn-php-with-extensions-8.4.22",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/xkm7zawfag0qzdbwfaasbiy5102aingn-php-with-extensions-8.4.22"
+        }
+      }
+    }
+  }
+}

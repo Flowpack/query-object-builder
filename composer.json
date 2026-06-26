@@ -1,0 +1,23 @@
+{
+  "name": "flowpack/query-object-builder",
+  "description": "A builder for query object expressions for fully types database syntax (MySQL, MariaDB, PostgreSQL)",
+  "type": "library",
+  "license": "GPL-3.0-or-later",
+  "require": {
+    "php": ">=8.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.5",
+    "phpstan/phpstan": "^2.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Flowpack\\QueryObjectBuilder\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Flowpack\\QueryObjectBuilder\\Test\\": "test/"
+    }
+  }
+}
