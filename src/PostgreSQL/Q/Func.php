@@ -52,6 +52,14 @@ final class Func
     }
 
     /**
+     * Build a `count(...)` aggregate expression.
+     */
+    public static function count(Exp $exp): AggBuilder
+    {
+        return new AggBuilder('count', [$exp]);
+    }
+
+    /**
      * Build a `sum(...)` aggregate expression.
      */
     public static function sum(Exp $exp): AggBuilder
