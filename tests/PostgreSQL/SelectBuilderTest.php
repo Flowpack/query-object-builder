@@ -36,23 +36,30 @@ describe('SelectBuilder', function () {
 
         // language=PostgreSQL
         expect($q)->toRenderSql(<<<'SQL'
-            WITH author_json AS (
+            WITH
+              author_json AS (
                 SELECT
-                    authors.author_id,
-                    json_build_object('id', authors.author_id, 'name', authors.name) AS json
+                  authors.author_id,
+                  json_build_object(
+                    'id', authors.author_id,
+                    'name', authors.name
+                  ) AS json
                 FROM
-                    authors
-            )
+                  authors
+              )
             SELECT
-                posts.post_id,
-                json_build_object('title', posts.title, 'author', author_json.json)
+              posts.post_id,
+              json_build_object(
+                'title', posts.title,
+                'author', author_json.json
+              )
             FROM
-                posts
-                LEFT JOIN author_json ON posts.author_id = author_json.author_id
+              posts
+              LEFT JOIN author_json ON posts.author_id = author_json.author_id
             WHERE
-                posts.category = $1
+              posts.category = $1
             ORDER BY
-                posts.created_at DESC NULLS LAST
+              posts.created_at DESC NULLS LAST
             SQL, [$myCategory]);
     });
 
@@ -129,29 +136,72 @@ describe('SelectBuilder', function () {
 
             // language=PostgreSQL
             expect($q)->toRenderSql(<<<'SQL'
-                WITH author_books AS (SELECT author_id,
-                                             COALESCE(json_agg(json_build_object('Title', books.title, 'AuthorID', books.author_id,
-                                                                                 'PublicationYear', books.publication_year, 'CreatedAt',
-                                                                                 books.created_at, 'UpdatedAt', books.updated_at, 'ID',
-                                                                                 books.book_id) ORDER BY publication_year),
-                                                      '[]') AS books
-                                      FROM books
-                                      GROUP BY author_id),
-                     book_genres AS (SELECT book_id,
-                                            COALESCE(json_agg(json_build_object('GenreID', genres.genre_id, 'Name', genres.name)
-                                                              ORDER BY name), '[]') AS genres
-                                     FROM book_genre
-                                              JOIN genres USING (genre_id)
-                                     GROUP BY book_id)
-                SELECT json_build_object('Title', books.title, 'AuthorID', books.author_id, 'PublicationYear', books.publication_year,
-                                         'CreatedAt', books.created_at, 'UpdatedAt', books.updated_at, 'ID', books.book_id, 'Author',
-                                         json_build_object('AuthorID', authors.author_id, 'Name', authors.name, 'Books',
-                                                           author_books.books), 'Genres', book_genres.genres)
-                FROM books
-                         LEFT JOIN authors USING (author_id)
-                         LEFT JOIN author_books USING (author_id)
-                         LEFT JOIN book_genres USING (book_id)
-                WHERE books.book_id = $1
+                WITH
+                  author_books AS (
+                    SELECT
+                      author_id,
+                      COALESCE(
+                        json_agg(
+                          json_build_object(
+                            'Title', books.title,
+                            'AuthorID', books.author_id,
+                            'PublicationYear', books.publication_year,
+                            'CreatedAt', books.created_at,
+                            'UpdatedAt', books.updated_at,
+                            'ID', books.book_id
+                          )
+                          ORDER BY
+                            publication_year
+                        ),
+                        '[]'
+                      ) AS books
+                    FROM
+                      books
+                    GROUP BY
+                      author_id
+                  ),
+                  book_genres AS (
+                    SELECT
+                      book_id,
+                      COALESCE(
+                        json_agg(
+                          json_build_object(
+                            'GenreID', genres.genre_id,
+                            'Name', genres.name
+                          )
+                          ORDER BY
+                            name
+                        ),
+                        '[]'
+                      ) AS genres
+                    FROM
+                      book_genre
+                      JOIN genres USING (genre_id)
+                    GROUP BY
+                      book_id
+                  )
+                SELECT
+                  json_build_object(
+                    'Title', books.title,
+                    'AuthorID', books.author_id,
+                    'PublicationYear', books.publication_year,
+                    'CreatedAt', books.created_at,
+                    'UpdatedAt', books.updated_at,
+                    'ID', books.book_id,
+                    'Author', json_build_object(
+                      'AuthorID', authors.author_id,
+                      'Name', authors.name,
+                      'Books', author_books.books
+                    ),
+                    'Genres', book_genres.genres
+                  )
+                FROM
+                  books
+                  LEFT JOIN authors USING (author_id)
+                  LEFT JOIN author_books USING (author_id)
+                  LEFT JOIN book_genres USING (book_id)
+                WHERE
+                  books.book_id = $1
                 SQL, [2]);
         });
 
@@ -208,50 +258,71 @@ describe('SelectBuilder', function () {
 
                 // language=PostgreSQL
                 expect($q)->toRenderSql(<<<'SQL'
-                    SELECT json_build_object(
-                                   'Title', books.title,
-                                   'AuthorID', books.author_id,
-                                   'PublicationYear', books.publication_year,
-                                   'CreatedAt', books.created_at,
-                                   'UpdatedAt', books.updated_at,
-                                   'ID', books.book_id,
-                                   'Author', (SELECT json_build_object(
-                                                             'AuthorID', authors.author_id,
-                                                             'Name', authors.name,
-                                                             'Books', (SELECT COALESCE(
-                                                                                      json_agg(
-                                                                                              json_build_object(
-                                                                                                      'Title', books.title,
-                                                                                                      'AuthorID', books.author_id,
-                                                                                                      'PublicationYear',
-                                                                                                      books.publication_year,
-                                                                                                      'CreatedAt', books.created_at,
-                                                                                                      'UpdatedAt', books.updated_at,
-                                                                                                      'ID', books.book_id
-                                                                                                  )
-                                                                                              ORDER BY books.publication_year),
-                                                                                      '[]'
-                                                                                  )
-                                                                       FROM books
-                                                                       WHERE books.author_id = authors.author_id)
-                                                             )
-                                              FROM authors
-                                              WHERE authors.author_id = books.author_id),
-                                   'Genres', (SELECT COALESCE(
-                                                     json_agg(
-                                                             json_build_object(
-                                                                     'GenreID', genres.genre_id,
-                                                                     'Name', genres.name
-                                                                 )
-                                                             ORDER BY genres.name),
-                                                     '[]'
-                                                 )
-                                              FROM book_genre
-                                                   LEFT JOIN genres USING (genre_id)
-                                              WHERE book_genre.book_id = books.book_id)
-                           )
-                    FROM books
-                    WHERE books.book_id = $1
+                    SELECT
+                      json_build_object(
+                        'Title', books.title,
+                        'AuthorID', books.author_id,
+                        'PublicationYear', books.publication_year,
+                        'CreatedAt', books.created_at,
+                        'UpdatedAt', books.updated_at,
+                        'ID', books.book_id,
+                        'Author', (
+                          SELECT
+                            json_build_object(
+                              'AuthorID', authors.author_id,
+                              'Name', authors.name,
+                              'Books', (
+                                SELECT
+                                  COALESCE(
+                                    json_agg(
+                                      json_build_object(
+                                        'Title', books.title,
+                                        'AuthorID', books.author_id,
+                                        'PublicationYear', books.publication_year,
+                                        'CreatedAt', books.created_at,
+                                        'UpdatedAt', books.updated_at,
+                                        'ID', books.book_id
+                                      )
+                                      ORDER BY
+                                        books.publication_year
+                                    ),
+                                    '[]'
+                                  )
+                                FROM
+                                  books
+                                WHERE
+                                  books.author_id = authors.author_id
+                              )
+                            )
+                          FROM
+                            authors
+                          WHERE
+                            authors.author_id = books.author_id
+                        ),
+                        'Genres', (
+                          SELECT
+                            COALESCE(
+                              json_agg(
+                                json_build_object(
+                                    'GenreID', genres.genre_id,
+                                    'Name', genres.name
+                                )
+                                ORDER BY
+                                  genres.name
+                              ),
+                              '[]'
+                            )
+                          FROM
+                            book_genre
+                            LEFT JOIN genres USING (genre_id)
+                          WHERE
+                            book_genre.book_id = books.book_id
+                        )
+                      )
+                    FROM
+                      books
+                    WHERE
+                      books.book_id = $1
                     SQL, [2]);
             });
 
@@ -260,10 +331,19 @@ describe('SelectBuilder', function () {
 
                 // language=PostgreSQL
                 expect($q)->toRenderSql(<<<'SQL'
-                    SELECT json_build_object('Title', books.title, 'AuthorID', books.author_id, 'PublicationYear', books.publication_year,
-                                             'CreatedAt', books.created_at, 'UpdatedAt', books.updated_at, 'ID', books.book_id)
-                    FROM books
-                    WHERE books.book_id = $1
+                    SELECT
+                      json_build_object(
+                        'Title', books.title,
+                        'AuthorID', books.author_id,
+                        'PublicationYear', books.publication_year,
+                        'CreatedAt', books.created_at,
+                        'UpdatedAt', books.updated_at,
+                        'ID', books.book_id
+                      )
+                    FROM
+                      books
+                    WHERE
+                      books.book_id = $1
                     SQL, [2]);
             });
 
@@ -278,12 +358,27 @@ describe('SelectBuilder', function () {
 
                 // language=PostgreSQL
                 expect($q)->toRenderSql(<<<'SQL'
-                    SELECT json_build_object('Title',books.title,'AuthorID',books.author_id,'PublicationYear',books.publication_year,'ID',books.book_id) FROM books ORDER BY books.publication_year LIMIT 10 OFFSET $1
+                    SELECT
+                      json_build_object(
+                        'Title', books.title,
+                        'AuthorID', books.author_id,
+                        'PublicationYear', books.publication_year,
+                        'ID', books.book_id
+                      )
+                    FROM
+                      books
+                    ORDER BY
+                      books.publication_year
+                    LIMIT
+                      10
+                    OFFSET
+                      $1
                     SQL, [5]);
             });
         });
     });
 
+    // These examples ar taken from https://www.postgresql.org/docs/14/sql-select.html#id-1.9.3.171.9
     describe('examples', function () {
         it('example 1', function () {
             $q = Q::select(Q::n('f.title'), Q::n('f.did'), Q::n('d.name'), Q::n('f.date_prod'), Q::n('f.kind'))
