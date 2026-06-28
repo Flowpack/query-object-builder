@@ -51,6 +51,22 @@ final class WithBuilder
     }
 
     /**
+     * Add a depth-first SEARCH clause to the last WITH query (recursive queries).
+     */
+    public function searchDepthFirst(): WithSearchBuilder
+    {
+        return new WithSearchBuilder($this->withQueries, WithSearchType::Depth);
+    }
+
+    /**
+     * Add a breadth-first SEARCH clause to the last WITH query (recursive queries).
+     */
+    public function searchBreadthFirst(): WithSearchBuilder
+    {
+        return new WithSearchBuilder($this->withQueries, WithSearchType::Breadth);
+    }
+
+    /**
      * Start the SELECT statement following the WITH clause.
      */
     public function select(Exp ...$exps): SelectSelectBuilder

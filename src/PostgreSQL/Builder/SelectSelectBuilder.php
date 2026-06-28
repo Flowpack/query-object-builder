@@ -6,7 +6,8 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
  * The builder state right after adding expressions to the select list, where
- * {@see as()} aliases the last added select expression.
+ * {@see as()} aliases the last added select expression and {@see distinct()}
+ * marks the select as DISTINCT.
  */
 final class SelectSelectBuilder extends SelectBuilder
 {
@@ -21,5 +22,14 @@ final class SelectSelectBuilder extends SelectBuilder
         $selectList[$lastIdx] = new OutputExpr($selectList[$lastIdx]->exp, $alias);
 
         return $this->derive(self::class, selectList: $selectList);
+    }
+
+    /**
+     * Make the select DISTINCT. Restrict it to certain expressions via
+     * {@see SelectDistinctBuilder::on()}.
+     */
+    public function distinct(): SelectDistinctBuilder
+    {
+        return $this->derive(SelectDistinctBuilder::class, distinct: true);
     }
 }

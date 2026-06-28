@@ -6,6 +6,8 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Q;
 
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\AggBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncBuilder;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\JsonBuildObjectBuilder;
 
 /**
@@ -47,5 +49,53 @@ final class Func
     public static function jsonbAgg(Exp $exp): AggBuilder
     {
         return new AggBuilder('jsonb_agg', [$exp]);
+    }
+
+    /**
+     * Build a `sum(...)` aggregate expression.
+     */
+    public static function sum(Exp $exp): AggBuilder
+    {
+        return new AggBuilder('sum', [$exp]);
+    }
+
+    /**
+     * Build an `avg(...)` aggregate expression.
+     */
+    public static function avg(Exp $exp): AggBuilder
+    {
+        return new AggBuilder('avg', [$exp]);
+    }
+
+    /**
+     * Build a `lower(...)` expression.
+     */
+    public static function lower(Exp $exp): FuncExp
+    {
+        return new FuncExp('lower', [$exp]);
+    }
+
+    /**
+     * Build an `unnest(...)` set-returning function.
+     */
+    public static function unnest(Exp $array, Exp ...$arrays): FuncBuilder
+    {
+        return new FuncBuilder('unnest', array_values([$array, ...$arrays]));
+    }
+
+    /**
+     * Build a `generate_series(...)` set-returning function.
+     */
+    public static function generateSeries(Exp $start, Exp $stop, ?Exp $step = null): FuncBuilder
+    {
+        return new FuncBuilder('generate_series', $step === null ? [$start, $stop] : [$start, $stop, $step]);
+    }
+
+    /**
+     * Build a `json_to_recordset(...)` set-returning function.
+     */
+    public static function jsonToRecordset(Exp $exp): FuncBuilder
+    {
+        return new FuncBuilder('json_to_recordset', [$exp]);
     }
 }

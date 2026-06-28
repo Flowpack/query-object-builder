@@ -35,6 +35,7 @@ final class WithWithBuilder
             array_values($names),
             $item->materialized,
             $item->query,
+            $item->search,
         );
 
         return new self($withQueries);
@@ -71,6 +72,7 @@ final class WithWithBuilder
             $item->columnNames,
             $materialized,
             $query,
+            $item->search,
         );
 
         return new WithBuilder($withQueries);

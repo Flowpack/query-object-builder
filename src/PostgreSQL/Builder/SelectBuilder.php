@@ -20,14 +20,16 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * The specific builders extend this base class, so they keep access to all the
  * generic clause methods (`select()`, `from()`, `join()`, ...).
  */
-class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
+class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, SelectOrExpressions
 {
     /**
      * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
+     * @param list<Combination> $combinations previous selects combined via UNION / INTERSECT / EXCEPT
      */
     public function __construct(
         protected readonly SelectQueryParts $parts = new SelectQueryParts(),
         protected readonly array $withQueries = [],
+        protected readonly array $combinations = [],
     ) {
     }
 
@@ -64,6 +66,22 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
     public function from(FromExp $from): FromSelectBuilder
     {
         return $this->derive(FromSelectBuilder::class, from: [...$this->parts->from, new FromItem($from)]);
+    }
+
+    /**
+     * Add a `LATERAL` table / function / subquery to the FROM clause.
+     */
+    public function fromLateral(FromLateralExp $from): FromSelectBuilder
+    {
+        return $this->derive(FromSelectBuilder::class, from: [...$this->parts->from, new FromItem($from, lateral: true)]);
+    }
+
+    /**
+     * Add an `ONLY` table to the FROM clause (no descendant tables).
+     */
+    public function fromOnly(FromExp $from): FromSelectBuilder
+    {
+        return $this->derive(FromSelectBuilder::class, from: [...$this->parts->from, new FromItem($from, only: true)]);
     }
 
     public function join(FromExp $from): JoinSelectBuilder
@@ -124,10 +142,24 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
 
     /**
      * Add a grouping element for the given expressions to the GROUP BY clause.
+     * With no expressions, the special grouping elements on {@see GroupBySelectBuilder}
+     * (`empty()`, `rollup()`, `cube()`, `groupingSets()`, `distinct()`) become available.
      */
-    public function groupBy(Exp ...$exps): SelectBuilder
+    public function groupBy(Exp ...$exps): GroupBySelectBuilder
     {
-        return $this->derive(SelectBuilder::class, groupBys: [...$this->parts->groupBys, new GroupingElement(array_values($exps))]);
+        if ($exps === []) {
+            return $this->derive(GroupBySelectBuilder::class);
+        }
+
+        return $this->derive(GroupBySelectBuilder::class, groupBys: [...$this->parts->groupBys, new GroupingElement([array_values($exps)])]);
+    }
+
+    /**
+     * Add a HAVING condition. Multiple calls are joined with AND.
+     */
+    public function having(Exp $cond): SelectBuilder
+    {
+        return $this->derive(SelectBuilder::class, havingConjunction: [...$this->parts->havingConjunction, $cond]);
     }
 
     /**
@@ -149,6 +181,56 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
     }
 
     /**
+     * Combine this select with the following one using UNION. Refine with
+     * {@see CombinationBuilder::all()} or supply the query via
+     * {@see CombinationBuilder::query()}.
+     */
+    public function union(): CombinationBuilder
+    {
+        return $this->addCombination(CombinationType::Union);
+    }
+
+    public function intersect(): CombinationBuilder
+    {
+        return $this->addCombination(CombinationType::Intersect);
+    }
+
+    public function except(): CombinationBuilder
+    {
+        return $this->addCombination(CombinationType::Except);
+    }
+
+    private function addCombination(CombinationType $type): CombinationBuilder
+    {
+        // Archive the current parts as a combination and start a fresh select.
+        return $this->derive(
+            CombinationBuilder::class,
+            parts: new SelectQueryParts(),
+            combinations: [...$this->combinations, new Combination($this->parts, $type)],
+        );
+    }
+
+    public function forUpdate(): ForSelectBuilder
+    {
+        return $this->derive(ForSelectBuilder::class, lockingClause: new LockingClause('UPDATE'));
+    }
+
+    public function forNoKeyUpdate(): ForSelectBuilder
+    {
+        return $this->derive(ForSelectBuilder::class, lockingClause: new LockingClause('NO KEY UPDATE'));
+    }
+
+    public function forShare(): ForSelectBuilder
+    {
+        return $this->derive(ForSelectBuilder::class, lockingClause: new LockingClause('SHARE'));
+    }
+
+    public function forKeyShare(): ForSelectBuilder
+    {
+        return $this->derive(ForSelectBuilder::class, lockingClause: new LockingClause('KEY SHARE'));
+    }
+
+    /**
      * Append the given WITH queries to this select's WITH clause.
      */
     public function appendWith(WithBuilder $with): SelectBuilder
@@ -157,47 +239,75 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
     }
 
     /**
+     * Whether this builder carries no content yet: no WITH queries, no
+     * combinations and empty select parts. Useful for conditional query building.
+     */
+    public function isEmpty(): bool
+    {
+        return $this->withQueries === [] && $this->combinations === [] && $this->parts->isEmpty();
+    }
+
+    /**
      * Assemble a new builder of the given type from the current state with the
      * given fields replaced; a null argument keeps the current value. This is the
      * single place where a derived {@see SelectQueryParts} and the type-state
      * transition are produced.
      *
+     * Pass `$parts` to replace the current parts wholesale (used when starting a
+     * combination, which archives the current parts and resets to an empty
+     * select); otherwise the individual field arguments patch the current parts.
+     *
      * @template T of SelectBuilder
      * @param class-string<T> $class
+     * @param list<Exp>|null $distinctOn
      * @param list<OutputExpr>|null $selectList
      * @param list<FromItem>|null $from
      * @param list<Exp>|null $whereConjunction
      * @param list<GroupingElement>|null $groupBys
+     * @param list<Exp>|null $havingConjunction
      * @param list<OrderByClause>|null $orderBys
      * @param list<WithQueryItem>|null $withQueries
+     * @param list<Combination>|null $combinations
      * @return T
      */
     protected function derive(
         string $class,
+        ?SelectQueryParts $parts = null,
+        ?bool $distinct = null,
+        ?array $distinctOn = null,
         ?JsonBuildObjectBuilder $selectJson = null,
         ?string $selectJsonAlias = null,
         ?array $selectList = null,
         ?array $from = null,
         ?array $whereConjunction = null,
+        ?bool $groupByDistinct = null,
         ?array $groupBys = null,
+        ?array $havingConjunction = null,
         ?array $orderBys = null,
         ?Exp $limit = null,
         ?Exp $offset = null,
+        ?LockingClause $lockingClause = null,
         ?array $withQueries = null,
+        ?array $combinations = null,
     ): SelectBuilder {
-        $parts = new SelectQueryParts(
-            $selectJson ?? $this->parts->selectJson,
-            $selectJsonAlias ?? $this->parts->selectJsonAlias,
-            $selectList ?? $this->parts->selectList,
-            $from ?? $this->parts->from,
-            $whereConjunction ?? $this->parts->whereConjunction,
-            $groupBys ?? $this->parts->groupBys,
-            $orderBys ?? $this->parts->orderBys,
-            $limit ?? $this->parts->limit,
-            $offset ?? $this->parts->offset,
+        $parts ??= new SelectQueryParts(
+            distinct: $distinct ?? $this->parts->distinct,
+            distinctOn: $distinctOn ?? $this->parts->distinctOn,
+            selectJson: $selectJson ?? $this->parts->selectJson,
+            selectJsonAlias: $selectJsonAlias ?? $this->parts->selectJsonAlias,
+            selectList: $selectList ?? $this->parts->selectList,
+            from: $from ?? $this->parts->from,
+            whereConjunction: $whereConjunction ?? $this->parts->whereConjunction,
+            groupByDistinct: $groupByDistinct ?? $this->parts->groupByDistinct,
+            groupBys: $groupBys ?? $this->parts->groupBys,
+            havingConjunction: $havingConjunction ?? $this->parts->havingConjunction,
+            orderBys: $orderBys ?? $this->parts->orderBys,
+            limit: $limit ?? $this->parts->limit,
+            offset: $offset ?? $this->parts->offset,
+            lockingClause: $lockingClause ?? $this->parts->lockingClause,
         );
 
-        return new $class($parts, $withQueries ?? $this->withQueries);
+        return new $class($parts, $withQueries ?? $this->withQueries, $combinations ?? $this->combinations);
     }
 
     /**
@@ -223,6 +333,17 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
             $this->writeWithQueries($sb);
         }
 
+        // Previous selects combined via UNION / INTERSECT / EXCEPT come first.
+        foreach ($this->combinations as $c) {
+            $this->writeSelectParts($sb, $c->parts);
+            $s = ' ' . $c->type->value;
+            if ($c->all) {
+                $s .= ' ALL';
+            }
+            $sb->writeString($s . ' ');
+            $c->query?->writeSql($sb);
+        }
+
         if (!$this->parts->isEmpty()) {
             $this->writeSelectParts($sb, $this->parts);
         }
@@ -245,6 +366,11 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
         if ($this->parts->offset !== null) {
             $sb->writeString(' OFFSET ');
             $this->parts->offset->writeSql($sb);
+        }
+
+        if ($this->parts->lockingClause !== null) {
+            $sb->writeString(' ');
+            $this->parts->lockingClause->writeSql($sb);
         }
     }
 
@@ -277,7 +403,25 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
         $s = '';
         $needComma = false;
 
+        if ($parts->distinct) {
+            if ($parts->distinctOn !== []) {
+                $sb->writeString('DISTINCT ON (');
+                foreach ($parts->distinctOn as $i => $exp) {
+                    if ($i > 0) {
+                        $sb->writeString(',');
+                    }
+                    $exp->writeSql($sb);
+                }
+                $s = ') ';
+            } else {
+                $s = 'DISTINCT ';
+            }
+        }
+
         if ($parts->selectJson !== null) {
+            $sb->writeString($s);
+            $s = '';
+
             $parts->selectJson->writeSql($sb);
             if ($parts->selectJsonAlias !== '') {
                 $s = ' AS ' . $parts->selectJsonAlias;
@@ -322,7 +466,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
         }
 
         if ($parts->groupBys !== []) {
-            $sb->writeString($s . ' GROUP BY ');
+            $sb->writeString($s . ' GROUP BY ' . ($parts->groupByDistinct ? 'DISTINCT ' : ''));
             $s = '';
 
             foreach ($parts->groupBys as $i => $groupBy) {
@@ -331,6 +475,13 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
                 }
                 $groupBy->writeSql($sb);
             }
+        }
+
+        if ($parts->havingConjunction !== []) {
+            $sb->writeString($s . ' HAVING ');
+            $s = '';
+
+            Junction::and(...$parts->havingConjunction)->writeSql($sb);
         }
 
         if ($s !== '') {

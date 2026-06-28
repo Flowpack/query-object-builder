@@ -49,4 +49,33 @@ abstract class ExpBase implements Exp
     {
         return $this->op('>=', $rgt);
     }
+
+    public function like(Exp $rgt): Exp
+    {
+        return $this->op('LIKE', $rgt);
+    }
+
+    /**
+     * Build an `IN (...)` expression. The right-hand side is a subquery or a
+     * list of expressions (see {@see Q::exps()} / {@see Q::args()}).
+     */
+    public function in(SelectOrExpressions $rgt): Exp
+    {
+        return new InExp($this, 'IN', $rgt);
+    }
+
+    public function notIn(SelectOrExpressions $rgt): Exp
+    {
+        return new InExp($this, 'NOT IN', $rgt);
+    }
+
+    public function isNull(): Exp
+    {
+        return new UnaryExp($this, Precedence::of('IS'), suffix: 'IS NULL');
+    }
+
+    public function isNotNull(): Exp
+    {
+        return new UnaryExp($this, Precedence::of('IS'), suffix: 'IS NOT NULL');
+    }
 }
