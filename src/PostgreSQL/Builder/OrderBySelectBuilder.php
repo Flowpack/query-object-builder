@@ -8,8 +8,11 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * The builder state right after adding an ORDER BY expression, where
  * {@see asc()} / {@see desc()} and {@see nullsFirst()} / {@see nullsLast()} act
  * on that last order by term.
+ *
+ * {@see OrderByWindowSelectBuilder} specializes this for the WINDOW clause, so
+ * that a window's `orderBy()` stays assignable where an ORDER BY builder is expected.
  */
-final class OrderBySelectBuilder extends SelectBuilder
+class OrderBySelectBuilder extends SelectBuilder
 {
     public function asc(): self
     {

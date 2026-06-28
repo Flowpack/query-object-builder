@@ -13,11 +13,13 @@ use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\CaseBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Expressions;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\ExistsExp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FloatLiteral;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\IdentExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\IntervalExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\IntLiteral;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\NullLiteral;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\JsonBuildObjectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Precedence;
@@ -222,6 +224,22 @@ final class Q
     public static function int(int $i): IntLiteral
     {
         return new IntLiteral($i);
+    }
+
+    /**
+     * A floating-point literal.
+     */
+    public static function float(float $f): FloatLiteral
+    {
+        return new FloatLiteral($f);
+    }
+
+    /**
+     * The SQL `NULL` literal.
+     */
+    public static function null(): NullLiteral
+    {
+        return new NullLiteral();
     }
 
     /**

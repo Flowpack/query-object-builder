@@ -62,6 +62,17 @@ class AggBuilder extends ExpBase
         return new self($this->name, $this->exps, $this->distinct, $this->orderBys, $this->filterConjunction, true);
     }
 
+    /**
+     * Use this aggregate as a window function. Pass an existing window name to
+     * reference a window from the query's `WINDOW` clause, or omit it and refine
+     * the window inline via {@see WindowFuncCallBuilder::partitionBy()} /
+     * {@see WindowFuncCallBuilder::orderBy()}.
+     */
+    public function over(string $existingWindowName = ''): WindowFuncCallBuilder
+    {
+        return new WindowFuncCallBuilder($this, new WindowDefinition($existingWindowName));
+    }
+
     public function writeSql(SqlBuilder $sb): void
     {
         $sb->writeString($this->name . '(' . ($this->distinct ? 'DISTINCT ' : ''));

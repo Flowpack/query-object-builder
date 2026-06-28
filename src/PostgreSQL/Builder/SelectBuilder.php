@@ -163,6 +163,17 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
     }
 
     /**
+     * Add a named window to the WINDOW clause; define it via
+     * {@see WindowSelectBuilder::as()} (optionally referencing an existing window),
+     * {@see WindowSelectBuilder::partitionBy()} and {@see WindowSelectBuilder::orderBy()}.
+     * Reference it by name from a window function's `OVER name`.
+     */
+    public function window(string $name): WindowSelectBuilder
+    {
+        return $this->derive(WindowSelectBuilder::class, windows: [...$this->parts->windows, new NamedWindow($name)]);
+    }
+
+    /**
      * Add an ORDER BY expression (refine it via {@see OrderBySelectBuilder}).
      */
     public function orderBy(Exp $exp): OrderBySelectBuilder
@@ -265,6 +276,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
      * @param list<Exp>|null $whereConjunction
      * @param list<GroupingElement>|null $groupBys
      * @param list<Exp>|null $havingConjunction
+     * @param list<NamedWindow>|null $windows
      * @param list<OrderByClause>|null $orderBys
      * @param list<WithQueryItem>|null $withQueries
      * @param list<Combination>|null $combinations
@@ -283,6 +295,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
         ?bool $groupByDistinct = null,
         ?array $groupBys = null,
         ?array $havingConjunction = null,
+        ?array $windows = null,
         ?array $orderBys = null,
         ?Exp $limit = null,
         ?Exp $offset = null,
@@ -301,6 +314,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
             groupByDistinct: $groupByDistinct ?? $this->parts->groupByDistinct,
             groupBys: $groupBys ?? $this->parts->groupBys,
             havingConjunction: $havingConjunction ?? $this->parts->havingConjunction,
+            windows: $windows ?? $this->parts->windows,
             orderBys: $orderBys ?? $this->parts->orderBys,
             limit: $limit ?? $this->parts->limit,
             offset: $offset ?? $this->parts->offset,
@@ -482,6 +496,18 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
             $s = '';
 
             Junction::and(...$parts->havingConjunction)->writeSql($sb);
+        }
+
+        if ($parts->windows !== []) {
+            $sb->writeString($s . ' WINDOW ');
+            $s = '';
+
+            foreach ($parts->windows as $i => $window) {
+                if ($i > 0) {
+                    $sb->writeString(',');
+                }
+                $window->writeSql($sb);
+            }
         }
 
         if ($s !== '') {
