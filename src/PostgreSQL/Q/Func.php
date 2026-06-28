@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Q;
 
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\AggBuilder;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\JsonBuildObjectBuilder;
 
 /**
@@ -32,5 +34,21 @@ final class Func
     public static function jsonbBuildObject(): JsonBuildObjectBuilder
     {
         return new JsonBuildObjectBuilder(true);
+    }
+
+    /**
+     * Build a `json_agg(...)` aggregate expression.
+     */
+    public static function jsonAgg(Exp $exp): AggBuilder
+    {
+        return new AggBuilder('json_agg', [$exp]);
+    }
+
+    /**
+     * Build a `jsonb_agg(...)` aggregate expression.
+     */
+    public static function jsonbAgg(Exp $exp): AggBuilder
+    {
+        return new AggBuilder('jsonb_agg', [$exp]);
     }
 }

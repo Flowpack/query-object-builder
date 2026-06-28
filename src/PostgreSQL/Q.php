@@ -6,11 +6,16 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL;
 
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Arg;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\IdentExp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\IntLiteral;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\JsonBuildObjectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\QueryBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SelectBuilder;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SelectJsonSelectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SelectSelectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SqlWriter;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\StringLiteral;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithQueryItem;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithWithBuilder;
 
@@ -33,6 +38,38 @@ final class Q
     public static function select(Exp ...$exps): SelectSelectBuilder
     {
         return (new SelectBuilder())->select(...$exps);
+    }
+
+    /**
+     * Start a select builder with the given JSON object as its (first) selection.
+     */
+    public static function selectJson(JsonBuildObjectBuilder $obj): SelectJsonSelectBuilder
+    {
+        return (new SelectBuilder())->applySelectJson(static fn (JsonBuildObjectBuilder $existing): JsonBuildObjectBuilder => $obj);
+    }
+
+    /**
+     * Build a `COALESCE(...)` expression.
+     */
+    public static function coalesce(Exp $exp, Exp ...$rest): FuncExp
+    {
+        return new FuncExp('COALESCE', array_values([$exp, ...$rest]));
+    }
+
+    /**
+     * A string literal.
+     */
+    public static function string(string $s): StringLiteral
+    {
+        return new StringLiteral($s);
+    }
+
+    /**
+     * An integer literal.
+     */
+    public static function int(int $i): IntLiteral
+    {
+        return new IntLiteral($i);
     }
 
     /**

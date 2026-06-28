@@ -23,6 +23,17 @@ final class WithBuilder
     }
 
     /**
+     * The WITH query items, for appending to another select via
+     * {@see SelectBuilder::appendWith()}.
+     *
+     * @return list<WithQueryItem>
+     */
+    public function withQueryItems(): array
+    {
+        return $this->withQueries;
+    }
+
+    /**
      * Add another WITH query (its body is supplied via {@see WithWithBuilder::as()}).
      */
     public function with(string $queryName): WithWithBuilder

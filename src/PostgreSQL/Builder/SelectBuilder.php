@@ -21,7 +21,7 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * The specific builders extend this base class, so they keep access to all the
  * generic clause methods (`select()`, `from()`, `join()`, ...).
  */
-class SelectBuilder implements InnerSqlWriter, WithQuery
+class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
 {
     /**
      * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
@@ -30,6 +30,20 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
         protected SelectQueryParts $parts = new SelectQueryParts(),
         protected array $withQueries = [],
     ) {
+    }
+
+    /**
+     * Apply a function to the JSON selection (an empty json_build_object if none
+     * set yet). The JSON selection is always written as the first select element.
+     *
+     * @param callable(JsonBuildObjectBuilder): JsonBuildObjectBuilder $apply
+     */
+    public function applySelectJson(callable $apply): SelectJsonSelectBuilder
+    {
+        $parts = clone $this->parts;
+        $parts->selectJson = $apply($parts->selectJson ?? new JsonBuildObjectBuilder(false));
+
+        return $this->into(SelectJsonSelectBuilder::class, $parts);
     }
 
     /**
@@ -116,6 +130,17 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
     }
 
     /**
+     * Add a grouping element for the given expressions to the GROUP BY clause.
+     */
+    public function groupBy(Exp ...$exps): SelectBuilder
+    {
+        $parts = clone $this->parts;
+        $parts->groupBys[] = new GroupingElement(array_values($exps));
+
+        return $this->into(SelectBuilder::class, $parts);
+    }
+
+    /**
      * Add an ORDER BY expression (refine it via {@see OrderBySelectBuilder}).
      */
     public function orderBy(Exp $exp): OrderBySelectBuilder
@@ -124,6 +149,30 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
         $parts->orderBys[] = new OrderByClause($exp);
 
         return $this->into(OrderBySelectBuilder::class, $parts);
+    }
+
+    public function limit(Exp $exp): SelectBuilder
+    {
+        $parts = clone $this->parts;
+        $parts->limit = $exp;
+
+        return $this->into(SelectBuilder::class, $parts);
+    }
+
+    public function offset(Exp $exp): SelectBuilder
+    {
+        $parts = clone $this->parts;
+        $parts->offset = $exp;
+
+        return $this->into(SelectBuilder::class, $parts);
+    }
+
+    /**
+     * Append the given WITH queries to this select's WITH clause.
+     */
+    public function appendWith(WithBuilder $with): SelectBuilder
+    {
+        return new SelectBuilder($this->parts, [...$this->withQueries, ...$with->withQueryItems()]);
     }
 
     /**
@@ -175,6 +224,16 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
                 $clause->writeSql($sb);
             }
         }
+
+        if ($this->parts->limit !== null) {
+            $sb->writeString(' LIMIT ');
+            $this->parts->limit->writeSql($sb);
+        }
+
+        if ($this->parts->offset !== null) {
+            $sb->writeString(' OFFSET ');
+            $this->parts->offset->writeSql($sb);
+        }
     }
 
     private function writeWithQueries(SqlBuilder $sb): void
@@ -203,9 +262,21 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
     {
         // Accumulate literal SQL into $s and only emit to the builder right
         // before a nested writer needs to write (and once at the very end).
-        $s = 'SELECT ';
-        foreach ($parts->selectList as $i => $out) {
-            if ($i > 0) {
+        $sb->writeString('SELECT ');
+        $s = '';
+        $needComma = false;
+
+        // The JSON selection, if any, is always the first select element.
+        if ($parts->selectJson !== null) {
+            $parts->selectJson->writeSql($sb);
+            if ($parts->selectJsonAlias !== '') {
+                $s = ' AS ' . $parts->selectJsonAlias;
+            }
+            $needComma = true;
+        }
+
+        foreach ($parts->selectList as $out) {
+            if ($needComma) {
                 $s .= ',';
             }
             $sb->writeString($s);
@@ -216,6 +287,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
             if ($out->alias !== '') {
                 $s = ' AS ' . $out->alias;
             }
+            $needComma = true;
         }
 
         if ($parts->from !== []) {
@@ -238,6 +310,18 @@ class SelectBuilder implements InnerSqlWriter, WithQuery
             $s = '';
 
             Junction::and(...$parts->whereConjunction)->writeSql($sb);
+        }
+
+        if ($parts->groupBys !== []) {
+            $sb->writeString($s . ' GROUP BY ');
+            $s = '';
+
+            foreach ($parts->groupBys as $i => $groupBy) {
+                if ($i > 0) {
+                    $sb->writeString(',');
+                }
+                $groupBy->writeSql($sb);
+            }
         }
 
         if ($s !== '') {
