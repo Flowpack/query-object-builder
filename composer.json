@@ -7,8 +7,15 @@
     "php": ">=8.4"
   },
   "require-dev": {
-    "phpunit/phpunit": "^11.5",
-    "phpstan/phpstan": "^2.1"
+    "phpunit/phpunit": "^12.0",
+    "phpstan/phpstan": "^2.1",
+    "pestphp/pest": "^4.0",
+    "imsuperlative/phpstan-pest": "^0.5.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
   },
   "autoload": {
     "psr-4": {
@@ -17,7 +24,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Flowpack\\QueryObjectBuilder\\Test\\": "test/"
+      "Flowpack\\QueryObjectBuilder\\Test\\": "tests/"
     }
   }
 }

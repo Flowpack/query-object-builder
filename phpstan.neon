@@ -1,0 +1,7 @@
+includes:
+    - vendor/imsuperlative/phpstan-pest/extension.neon
+parameters:
+    level: max
+    paths:
+        - src
+        - tests

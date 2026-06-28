@@ -16,7 +16,8 @@ patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
   `Fn`, because `Fn` is a reserved keyword in PHP and cannot be a class name.
 - `src/PostgreSQL/Builder/` — expressions, the select-builder family, and the
   internal value objects.
-- `test/PostgreSQL/` — PHPUnit tests and small `readonly` option fixtures.
+- `tests/` — Pest tests, the `tests/Pest.php` bootstrap, and small `readonly`
+  option fixtures.
 
 ## Conventions
 
@@ -45,6 +46,10 @@ Everything in the query model is immutable.
 The one deliberate exception is **`SqlBuilder`**, which is mutable: it is the
 rendering accumulator, created inside `QueryBuilder::toSql()`, never exposed and
 never part of the query model.
+
+`derive()` builds a fresh object instead of cloning — a few hundred nanoseconds
+per builder step, negligible next to query execution. Don't trade the
+immutability guarantee for build-time micro-optimization.
 
 ### Public vs internal API
 
@@ -83,18 +88,43 @@ concatenation, so fewer `writeString()` calls is the win.
   WHERE-before-GROUP-BY, RECURSIVE-written-once).
 - Don't strip purposeful comments; do strip comments that merely restate the code.
 
-### Tests
+### Testing (Pest)
 
-- Assert generated SQL through the `AssertSql` trait, which ignores insignificant
-  whitespace; expected SQL can be written readably in a nowdoc.
-- Option/parameter bags from ported tests become small `final readonly` value
-  objects under `test/PostgreSQL/` (named constructor args, defaulted fields).
+Tests use **Pest 4** (on PHPUnit 12) so the nested structure of qrb's `t.Run`
+groups maps directly onto nested `describe()` / `it()`.
+
+- **Structure**: mirror qrb's nesting with `describe()`/`it()`. Helper closures
+  shared by a group are defined in the `describe()` body and pulled into each
+  `it()` via `use (...)`.
+- **Assertion**: a custom expectation, `expect($query)->toRenderSql($sql, $args)`,
+  defined in `tests/Pest.php`. It builds the query and compares against `$sql`
+  ignoring insignificant whitespace (`normalizeSql()`), so expected SQL can be
+  written readably in a nowdoc; pass `null` for `$args` when none are bound.
+- **Option bags** from ported tests are small `final readonly` value objects
+  under `tests/` (named constructor args, defaulted fields).
+- **Static analysis**: `imsuperlative/phpstan-pest` teaches PHPStan about Pest
+  (including resolving custom `expect()->extend()` expectations). One gotcha: the
+  value inside an `extend()` closure is statically untyped, so narrow it through a
+  tiny typed helper (`asSqlWriter()`) rather than an `instanceof` in the closure —
+  an `instanceof` there reads as "always false".
+
+### Porting from qrb
+
+The query API is being ported from `qrb` incrementally; new SELECT clauses,
+expressions, functions and the INSERT/UPDATE/DELETE builders follow the patterns
+above. When translating its tests:
+
+- Go subtests (`t.Run`) → nested `describe()`/`it()`.
+- Go local helper funcs → arrow-function closures (`static fn (...) => ...`),
+  which capture earlier closures by value.
+- Copy the expected SQL verbatim into a nowdoc — `toRenderSql` handles whitespace.
 
 ## Verify
 
 ```
-vendor/bin/phpunit
-vendor/bin/phpstan analyse src test --level=max
+vendor/bin/pest
+vendor/bin/phpstan analyse
 ```
 
-Both must pass for any change.
+Both must pass for any change. (PHPStan config — `level: max`, paths, and the
+Pest extension — lives in `phpstan.neon`.)
