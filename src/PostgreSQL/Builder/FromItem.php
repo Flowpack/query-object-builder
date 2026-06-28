@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * A single item in the FROM clause: a table/function/subquery/join with an
- * optional alias and column aliases, optionally marked LATERAL or ONLY.
+ * A FROM-clause item: a relation (table, function, subquery or join) with an
+ * optional alias and column aliases, optionally LATERAL or ONLY.
  *
- * Mutable by design: the immutable builders copy it (via clone) before changing
- * the alias, see {@see FromSelectBuilder::as()}.
+ * @internal
  */
 final class FromItem
 {
@@ -17,18 +16,18 @@ final class FromItem
      * @param list<string> $columnAliases
      */
     public function __construct(
-        public FromExp $from,
-        public string $alias = '',
-        public bool $lateral = false,
-        public bool $only = false,
-        public array $columnAliases = [],
+        public readonly FromExp $from,
+        public readonly string $alias = '',
+        public readonly bool $lateral = false,
+        public readonly bool $only = false,
+        public readonly array $columnAliases = [],
     ) {
     }
 
     public function writeSql(SqlBuilder $sb): void
     {
         if ($this->lateral && $this->only) {
-            $sb->addError(new QueryBuilderException('from item: cannot specify both LATERAL and ONLY'));
+            $sb->addError(new QueryBuilderException('FROM item cannot be both LATERAL and ONLY'));
 
             return;
         }

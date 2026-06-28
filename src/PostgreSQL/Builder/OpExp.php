@@ -9,8 +9,6 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  *
  * Operands are wrapped in parentheses based on operator precedence so the
  * generated SQL preserves the intended grouping.
- *
- * Port of the Go `builder.opExp`.
  */
 final class OpExp extends ExpBase implements Precedencer
 {

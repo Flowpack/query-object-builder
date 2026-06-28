@@ -6,6 +6,8 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
  * Helpers for quoting SQL literals.
+ *
+ * @internal
  */
 final class Literals
 {
@@ -18,8 +20,6 @@ final class Literals
      * JSON object key). Single quotes are doubled; if the value contains
      * backslashes they are escaped and the C-style escape syntax (` E'...'`) is
      * used.
-     *
-     * Port of the Go `builder.pqQuoteLiteral` (borrowed from lib/pq).
      */
     public static function quoteLiteral(string $literal): string
     {

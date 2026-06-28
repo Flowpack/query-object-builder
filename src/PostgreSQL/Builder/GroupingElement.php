@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * A single GROUP BY grouping element: a list of expressions. A single
- * expression is written as-is, multiple expressions are parenthesized.
+ * A GROUP BY grouping element. A single expression is written as-is; multiple
+ * expressions are parenthesized as a row.
  *
- * This is the simple form of the Go `builder.groupingElement` (ROLLUP / CUBE /
- * GROUPING SETS are not yet supported).
+ * @internal
  */
 final class GroupingElement
 {
@@ -17,7 +16,7 @@ final class GroupingElement
      * @param list<Exp> $exps
      */
     public function __construct(
-        public array $exps,
+        public readonly array $exps,
     ) {
     }
 

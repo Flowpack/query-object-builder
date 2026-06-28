@@ -22,9 +22,8 @@ use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithWithBuilder;
 /**
  * Entry point (facade) for building PostgreSQL queries.
  *
- * It exposes the builder package as a small set of static functions so that the
- * builder types and interfaces don't have to be referenced directly. This
- * mirrors the Go `qrb` root package, scoped to the PostgreSQL dialect.
+ * It exposes the builder package as a small set of static functions so the
+ * underlying builder types and interfaces don't have to be referenced directly.
  */
 final class Q
 {

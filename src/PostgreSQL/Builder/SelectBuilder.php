@@ -7,12 +7,11 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 /**
  * Builds a SELECT query.
  *
- * This is the PHP adaptation of the Go `builder.SelectBuilder`. It follows the
- * same two principles:
+ * Two principles run through this family of builders:
  *
  *  - Immutability: every method returns a new builder; the receiver is never
- *    modified. State lives in {@see SelectQueryParts}, which is cloned before
- *    being changed.
+ *    modified. The state lives in an immutable {@see SelectQueryParts}, and a
+ *    derived copy is assembled only by {@see derive()}.
  *  - Type-state: methods return a more specific builder type (e.g. {@see
  *    FromSelectBuilder} after {@see from()}) so that context-dependent methods
  *    like `as()`, `using()` or `on()` are only available — and only act on the
@@ -27,23 +26,23 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
      */
     public function __construct(
-        protected SelectQueryParts $parts = new SelectQueryParts(),
-        protected array $withQueries = [],
+        protected readonly SelectQueryParts $parts = new SelectQueryParts(),
+        protected readonly array $withQueries = [],
     ) {
     }
 
     /**
      * Apply a function to the JSON selection (an empty json_build_object if none
-     * set yet). The JSON selection is always written as the first select element.
+     * is set yet). The JSON selection is always written as the first select element.
      *
      * @param callable(JsonBuildObjectBuilder): JsonBuildObjectBuilder $apply
      */
     public function applySelectJson(callable $apply): SelectJsonSelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->selectJson = $apply($parts->selectJson ?? new JsonBuildObjectBuilder(false));
-
-        return $this->into(SelectJsonSelectBuilder::class, $parts);
+        return $this->derive(
+            SelectJsonSelectBuilder::class,
+            selectJson: $apply($this->parts->selectJson ?? new JsonBuildObjectBuilder(false)),
+        );
     }
 
     /**
@@ -51,12 +50,12 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      */
     public function select(Exp ...$exps): SelectSelectBuilder
     {
-        $parts = clone $this->parts;
+        $selectList = $this->parts->selectList;
         foreach ($exps as $exp) {
-            $parts->selectList[] = new OutputExpr($exp);
+            $selectList[] = new OutputExpr($exp);
         }
 
-        return $this->into(SelectSelectBuilder::class, $parts);
+        return $this->derive(SelectSelectBuilder::class, selectList: $selectList);
     }
 
     /**
@@ -64,10 +63,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      */
     public function from(FromExp $from): FromSelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->from[] = new FromItem($from);
-
-        return $this->into(FromSelectBuilder::class, $parts);
+        return $this->derive(FromSelectBuilder::class, from: [...$this->parts->from, new FromItem($from)]);
     }
 
     public function join(FromExp $from): JoinSelectBuilder
@@ -112,10 +108,10 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
 
     private function addJoin(JoinType $joinType, FromExp $from, bool $lateral): JoinSelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->from[] = new FromItem(new Join($joinType, $lateral, $from));
-
-        return $this->into(JoinSelectBuilder::class, $parts);
+        return $this->derive(
+            JoinSelectBuilder::class,
+            from: [...$this->parts->from, new FromItem(new Join($joinType, $lateral, $from))],
+        );
     }
 
     /**
@@ -123,10 +119,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      */
     public function where(Exp $cond): SelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->whereConjunction[] = $cond;
-
-        return $this->into(SelectBuilder::class, $parts);
+        return $this->derive(SelectBuilder::class, whereConjunction: [...$this->parts->whereConjunction, $cond]);
     }
 
     /**
@@ -134,10 +127,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      */
     public function groupBy(Exp ...$exps): SelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->groupBys[] = new GroupingElement(array_values($exps));
-
-        return $this->into(SelectBuilder::class, $parts);
+        return $this->derive(SelectBuilder::class, groupBys: [...$this->parts->groupBys, new GroupingElement(array_values($exps))]);
     }
 
     /**
@@ -145,26 +135,17 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      */
     public function orderBy(Exp $exp): OrderBySelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->orderBys[] = new OrderByClause($exp);
-
-        return $this->into(OrderBySelectBuilder::class, $parts);
+        return $this->derive(OrderBySelectBuilder::class, orderBys: [...$this->parts->orderBys, new OrderByClause($exp)]);
     }
 
     public function limit(Exp $exp): SelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->limit = $exp;
-
-        return $this->into(SelectBuilder::class, $parts);
+        return $this->derive(SelectBuilder::class, limit: $exp);
     }
 
     public function offset(Exp $exp): SelectBuilder
     {
-        $parts = clone $this->parts;
-        $parts->offset = $exp;
-
-        return $this->into(SelectBuilder::class, $parts);
+        return $this->derive(SelectBuilder::class, offset: $exp);
     }
 
     /**
@@ -172,28 +153,57 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
      */
     public function appendWith(WithBuilder $with): SelectBuilder
     {
-        return new SelectBuilder($this->parts, [...$this->withQueries, ...$with->withQueryItems()]);
+        return $this->derive(SelectBuilder::class, withQueries: [...$this->withQueries, ...$with->withQueryItems()]);
     }
 
     /**
-     * Create a new builder of the given type carrying the given parts.
-     *
-     * This is how the type-state transitions are implemented: the state is
-     * copied into a fresh instance of the target builder class.
+     * Assemble a new builder of the given type from the current state with the
+     * given fields replaced; a null argument keeps the current value. This is the
+     * single place where a derived {@see SelectQueryParts} and the type-state
+     * transition are produced.
      *
      * @template T of SelectBuilder
      * @param class-string<T> $class
+     * @param list<OutputExpr>|null $selectList
+     * @param list<FromItem>|null $from
+     * @param list<Exp>|null $whereConjunction
+     * @param list<GroupingElement>|null $groupBys
+     * @param list<OrderByClause>|null $orderBys
+     * @param list<WithQueryItem>|null $withQueries
      * @return T
      */
-    protected function into(string $class, SelectQueryParts $parts): SelectBuilder
-    {
-        return new $class($parts, $this->withQueries);
+    protected function derive(
+        string $class,
+        ?JsonBuildObjectBuilder $selectJson = null,
+        ?string $selectJsonAlias = null,
+        ?array $selectList = null,
+        ?array $from = null,
+        ?array $whereConjunction = null,
+        ?array $groupBys = null,
+        ?array $orderBys = null,
+        ?Exp $limit = null,
+        ?Exp $offset = null,
+        ?array $withQueries = null,
+    ): SelectBuilder {
+        $parts = new SelectQueryParts(
+            $selectJson ?? $this->parts->selectJson,
+            $selectJsonAlias ?? $this->parts->selectJsonAlias,
+            $selectList ?? $this->parts->selectList,
+            $from ?? $this->parts->from,
+            $whereConjunction ?? $this->parts->whereConjunction,
+            $groupBys ?? $this->parts->groupBys,
+            $orderBys ?? $this->parts->orderBys,
+            $limit ?? $this->parts->limit,
+            $offset ?? $this->parts->offset,
+        );
+
+        return new $class($parts, $withQueries ?? $this->withQueries);
     }
 
-    // --- SqlWriter / InnerSqlWriter
-
     /**
-     * Write the select as an expression (i.e. a subquery), wrapped in parentheses.
+     * Write the select as a subquery expression, wrapped in parentheses.
+     *
+     * @internal
      */
     public function writeSql(SqlBuilder $sb): void
     {
@@ -203,7 +213,9 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
     }
 
     /**
-     * Write the select without the surrounding parentheses (top-level query).
+     * Write the select without the surrounding parentheses (the top-level query).
+     *
+     * @internal
      */
     public function innerWriteSql(SqlBuilder $sb): void
     {
@@ -246,8 +258,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
             }
         }
 
-        // From the docs: when there are multiple queries in the WITH clause,
-        // RECURSIVE is written only once, immediately after WITH.
+        // RECURSIVE is written once, right after WITH, and applies to all queries.
         $sb->writeString($hasRecursive ? 'WITH RECURSIVE ' : 'WITH ');
         foreach ($this->withQueries as $i => $w) {
             if ($i > 0) {
@@ -260,13 +271,12 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
 
     private function writeSelectParts(SqlBuilder $sb, SelectQueryParts $parts): void
     {
-        // Accumulate literal SQL into $s and only emit to the builder right
-        // before a nested writer needs to write (and once at the very end).
+        // Accumulate literal SQL into $s and only flush before a nested writer
+        // needs to write (and once at the very end).
         $sb->writeString('SELECT ');
         $s = '';
         $needComma = false;
 
-        // The JSON selection, if any, is always the first select element.
         if ($parts->selectJson !== null) {
             $parts->selectJson->writeSql($sb);
             if ($parts->selectJsonAlias !== '') {
@@ -294,8 +304,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp
             $s .= ' FROM ';
             foreach ($parts->from as $i => $fromItem) {
                 if ($i > 0) {
-                    // Joins are written adjacent to the previous item, plain
-                    // from items are comma-separated.
+                    // A join attaches to the previous item; a plain item is comma-separated.
                     $s .= $fromItem->from instanceof Join ? ' ' : ',';
                 }
                 $sb->writeString($s);

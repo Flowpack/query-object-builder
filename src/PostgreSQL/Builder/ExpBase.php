@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * Base class for expressions, providing the chainable operator methods.
- *
- * This is the PHP adaptation of the Go `builder.ExpBase`: in Go the operator
- * methods are promoted onto concrete expressions via struct embedding; here
- * concrete expressions extend this class instead. The left-hand side of every
- * operator is `$this`, so no wrapping/unwrapping is needed.
+ * Base class for expressions, providing the chainable operator methods with
+ * `$this` as their left-hand side.
  */
 abstract class ExpBase implements Exp
 {

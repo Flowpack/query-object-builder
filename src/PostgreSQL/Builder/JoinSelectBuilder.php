@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * The builder state right after adding a join to the FROM clause.
- *
- * Here {@see as()}, {@see on()} and {@see using()} act on the last added join.
+ * The builder state right after adding a join to the FROM clause, where
+ * {@see as()}, {@see on()} and {@see using()} act on that last join.
  */
 final class JoinSelectBuilder extends SelectBuilder
 {
@@ -16,10 +15,7 @@ final class JoinSelectBuilder extends SelectBuilder
      */
     public function as(string $alias): self
     {
-        [$parts, $join] = $this->cloneLastJoin();
-        $join->alias = $alias;
-
-        return $this->into(self::class, $parts);
+        return $this->derive(self::class, from: $this->rebuildLastJoin(alias: $alias));
     }
 
     /**
@@ -27,10 +23,7 @@ final class JoinSelectBuilder extends SelectBuilder
      */
     public function on(Exp $cond): SelectBuilder
     {
-        [$parts, $join] = $this->cloneLastJoin();
-        $join->on = $cond;
-
-        return $this->into(SelectBuilder::class, $parts);
+        return $this->derive(SelectBuilder::class, from: $this->rebuildLastJoin(on: $cond));
     }
 
     /**
@@ -38,32 +31,34 @@ final class JoinSelectBuilder extends SelectBuilder
      */
     public function using(string ...$columns): SelectBuilder
     {
-        [$parts, $join] = $this->cloneLastJoin();
-        $join->using = array_values($columns);
-
-        return $this->into(SelectBuilder::class, $parts);
+        return $this->derive(SelectBuilder::class, from: $this->rebuildLastJoin(using: array_values($columns)));
     }
 
     /**
-     * Clone the parts together with the last from item and its join, wired up so
-     * the returned join can be mutated in place without affecting this builder.
+     * Return the from list with the last join replaced by a copy carrying the
+     * given overrides.
      *
-     * @return array{0: SelectQueryParts, 1: Join}
+     * @param list<string>|null $using
+     * @return list<FromItem>
      */
-    private function cloneLastJoin(): array
+    private function rebuildLastJoin(?string $alias = null, ?Exp $on = null, ?array $using = null): array
     {
-        $parts = clone $this->parts;
-        $lastIdx = array_key_last($parts->from);
+        $from = $this->parts->from;
+        $lastIdx = array_key_last($from);
         assert($lastIdx !== null);
 
-        $fromItem = clone $parts->from[$lastIdx];
-        $join = $fromItem->from;
+        $join = $from[$lastIdx]->from;
         assert($join instanceof Join);
-        $join = clone $join;
 
-        $fromItem->from = $join;
-        $parts->from[$lastIdx] = $fromItem;
+        $from[$lastIdx] = new FromItem(new Join(
+            $join->joinType,
+            $join->lateral,
+            $join->from,
+            $alias ?? $join->alias,
+            $on ?? $join->on,
+            $using ?? $join->using,
+        ));
 
-        return [$parts, $join];
+        return $from;
     }
 }

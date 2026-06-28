@@ -6,10 +6,12 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
  * Accumulates the generated SQL string together with positional/named arguments
- * and any errors that occur while building.
+ * and any errors that occur while building. An instance is threaded through
+ * {@see SqlWriter::writeSql()} while building a query.
  *
- * An instance is passed down through {@see SqlWriter::writeSql()} while building
- * a query.
+ * This is the one mutable part of the model: a short-lived rendering accumulator.
+ *
+ * @internal
  */
 final class SqlBuilder
 {

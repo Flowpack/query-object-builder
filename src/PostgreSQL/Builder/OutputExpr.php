@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * A single entry in the select list: an expression with an optional alias.
+ * A select-list entry: an expression with an optional output alias.
  *
- * Mutable by design: the immutable builders copy it (via clone) before changing
- * its alias, see {@see SelectSelectBuilder::as()}.
+ * @internal
  */
 final class OutputExpr
 {
     public function __construct(
-        public Exp $exp,
-        public string $alias = '',
+        public readonly Exp $exp,
+        public readonly string $alias = '',
     ) {
     }
 }

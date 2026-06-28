@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * A plain function-call expression, e.g. `COALESCE(a, b)`.
- *
- * Port of the Go `builder.funcExp` / `builder.FuncExp` (the simple expression
- * form, as opposed to the richer FuncBuilder used in FROM clauses).
+ * A function-call expression, e.g. `COALESCE(a, b)`.
  */
 final class FuncExp extends ExpBase
 {

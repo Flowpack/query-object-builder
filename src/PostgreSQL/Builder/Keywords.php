@@ -8,7 +8,7 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * Helpers for quoting identifiers that collide with PostgreSQL reserved
  * keywords.
  *
- * Port of the Go `builder/keywords.go`.
+ * @internal
  */
 final class Keywords
 {

@@ -7,10 +7,6 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 /**
  * Builds an aggregate function call, e.g. `json_agg(expr ORDER BY ...)`,
  * `count(DISTINCT expr)` or `string_agg(expr, ',') WITHIN GROUP (ORDER BY ...)`.
- *
- * Immutable: every method returns a new builder.
- *
- * Port of the Go `builder.AggBuilder`.
  */
 class AggBuilder extends ExpBase
 {
@@ -20,26 +16,23 @@ class AggBuilder extends ExpBase
      * @param list<Exp> $filterConjunction
      */
     public function __construct(
-        protected string $name,
-        protected array $exps,
-        protected bool $distinct = false,
-        protected array $orderBys = [],
-        protected array $filterConjunction = [],
-        protected bool $withinGroupOrderBy = false,
+        protected readonly string $name,
+        protected readonly array $exps,
+        protected readonly bool $distinct = false,
+        protected readonly array $orderBys = [],
+        protected readonly array $filterConjunction = [],
+        protected readonly bool $withinGroupOrderBy = false,
     ) {
     }
 
-    public function distinct(): static
+    public function distinct(): self
     {
-        $b = clone $this;
-        $b->distinct = true;
-
-        return $b;
+        return new self($this->name, $this->exps, true, $this->orderBys, $this->filterConjunction, $this->withinGroupOrderBy);
     }
 
     /**
      * Add an ORDER BY clause to the aggregate (refine via {@see OrderByAggBuilder}).
-     * If {@see withinGroup()} is used, this order by is written inside WITHIN GROUP.
+     * With {@see withinGroup()} it is written inside WITHIN GROUP instead.
      */
     public function orderBy(Exp $exp): OrderByAggBuilder
     {
@@ -56,23 +49,17 @@ class AggBuilder extends ExpBase
     /**
      * Add a FILTER (WHERE ...) clause. Multiple calls are joined with AND.
      */
-    public function filter(Exp $cond): static
+    public function filter(Exp $cond): self
     {
-        $b = clone $this;
-        $b->filterConjunction = [...$this->filterConjunction, $cond];
-
-        return $b;
+        return new self($this->name, $this->exps, $this->distinct, $this->orderBys, [...$this->filterConjunction, $cond], $this->withinGroupOrderBy);
     }
 
     /**
      * Write the order by clause after the aggregate as WITHIN GROUP (ORDER BY ...).
      */
-    public function withinGroup(): static
+    public function withinGroup(): self
     {
-        $b = clone $this;
-        $b->withinGroupOrderBy = true;
-
-        return $b;
+        return new self($this->name, $this->exps, $this->distinct, $this->orderBys, $this->filterConjunction, true);
     }
 
     public function writeSql(SqlBuilder $sb): void

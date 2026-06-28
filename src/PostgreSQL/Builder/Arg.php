@@ -8,8 +8,6 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * An argument expression: a value bound to a positional placeholder.
  *
  * Each instance creates a new placeholder (e.g. `$1`) when the query is built.
- *
- * Port of the Go `builder.argExp` / `Arg`.
  */
 final class Arg extends ExpBase
 {

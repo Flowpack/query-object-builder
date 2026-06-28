@@ -6,8 +6,6 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
  * An integer literal expression (e.g. `10`).
- *
- * Port of the Go `builder.expInt` / `builder.Int`.
  */
 final class IntLiteral implements Exp
 {

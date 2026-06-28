@@ -8,12 +8,8 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  * Builds a `json_build_object(...)` (or `jsonb_build_object(...)`) expression
  * from a set of key/value properties.
  *
- * Immutable: every method returns a new builder. Properties keep insertion
- * order, and setting an existing key updates its value in place (keeping its
- * position) — PHP associative arrays give us exactly the ordered-map semantics
- * of the Go `immutableSliceMap`.
- *
- * Port of the Go `builder.JsonBuildObjectBuilder`.
+ * Properties keep insertion order; setting an existing key replaces its value
+ * while keeping its position.
  */
 final class JsonBuildObjectBuilder implements Exp
 {

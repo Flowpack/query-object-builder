@@ -10,8 +10,6 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  *
  * The identifier is validated when the query is built (unless validation is
  * disabled) and reserved PostgreSQL keywords are automatically quoted.
- *
- * Port of the Go `builder.IdentExp` / `builder.N`.
  */
 final class IdentExp extends ExpBase implements FromExp
 {

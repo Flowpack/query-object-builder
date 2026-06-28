@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * Operator precedence lookup, higher number means higher precedence.
- *
- * Mirrors the Go `builder.opPrecedence` map (which also includes operators not
- * created via {@see ExpBase::op()} so the mapping is complete).
+ * Operator precedence lookup; a higher number binds tighter. Used to decide when
+ * an operand must be parenthesized.
  *
  * See https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-PRECEDENCE.
+ *
+ * @internal
  */
 final class Precedence
 {
@@ -26,7 +26,7 @@ final class Precedence
         '%' => 2,
         '+' => 1,
         '-' => 1,
-        // 0: any other operator (the zero value)
+        // any other operator defaults to 0 (see self::of())
         'BETWEEN' => -1,
         'IN' => -1,
         'LIKE' => -1,

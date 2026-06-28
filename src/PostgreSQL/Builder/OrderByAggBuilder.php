@@ -5,57 +5,41 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * The aggregate builder state right after an ORDER BY expression was added;
+ * The aggregate builder state right after an ORDER BY expression was added, where
  * {@see asc()} / {@see desc()} / {@see nullsFirst()} / {@see nullsLast()} act on
- * the last added order by clause.
+ * that last order by clause.
  */
 final class OrderByAggBuilder extends AggBuilder
 {
     public function asc(): self
     {
-        return $this->setOrder(SortOrder::Asc);
+        return $this->rebuildLastOrderBy(order: SortOrder::Asc);
     }
 
     public function desc(): self
     {
-        return $this->setOrder(SortOrder::Desc);
+        return $this->rebuildLastOrderBy(order: SortOrder::Desc);
     }
 
     public function nullsFirst(): self
     {
-        return $this->setNulls(SortNulls::First);
+        return $this->rebuildLastOrderBy(nulls: SortNulls::First);
     }
 
     public function nullsLast(): self
     {
-        return $this->setNulls(SortNulls::Last);
+        return $this->rebuildLastOrderBy(nulls: SortNulls::Last);
     }
 
-    private function setOrder(SortOrder $order): self
+    private function rebuildLastOrderBy(?SortOrder $order = null, ?SortNulls $nulls = null): self
     {
-        $b = clone $this;
-        $b->orderBys = $this->orderBys;
-        $lastIdx = array_key_last($b->orderBys);
+        $orderBys = $this->orderBys;
+        $lastIdx = array_key_last($orderBys);
         assert($lastIdx !== null);
 
-        $clause = clone $b->orderBys[$lastIdx];
-        $clause->order = $order;
-        $b->orderBys[$lastIdx] = $clause;
+        $clause = $orderBys[$lastIdx];
+        $orderBys[$lastIdx] = new OrderByClause($clause->exp, $order ?? $clause->order, $nulls ?? $clause->nulls);
 
-        return $b;
-    }
-
-    private function setNulls(SortNulls $nulls): self
-    {
-        $b = clone $this;
-        $b->orderBys = $this->orderBys;
-        $lastIdx = array_key_last($b->orderBys);
-        assert($lastIdx !== null);
-
-        $clause = clone $b->orderBys[$lastIdx];
-        $clause->nulls = $nulls;
-        $b->orderBys[$lastIdx] = $clause;
-
-        return $b;
+        return new self($this->name, $this->exps, $this->distinct, $orderBys, $this->filterConjunction, $this->withinGroupOrderBy);
     }
 }

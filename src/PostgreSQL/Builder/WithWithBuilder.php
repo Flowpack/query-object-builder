@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * The state of a WITH builder right after a query name was started but its body
- * is not yet supplied. Provide the body via {@see as()} (or the materialized
- * variants), optionally naming the columns first via {@see columnNames()}.
- *
- * Port of the Go `builder.WithWithBuilder`.
+ * A WITH builder whose latest query name has been started but its body is not
+ * yet supplied. Provide the body via {@see as()} (or the materialized variants),
+ * optionally naming the columns first via {@see columnNames()}.
  */
 final class WithWithBuilder
 {
@@ -30,9 +28,14 @@ final class WithWithBuilder
         $lastIdx = array_key_last($withQueries);
         assert($lastIdx !== null);
 
-        $item = clone $withQueries[$lastIdx];
-        $item->columnNames = array_values($names);
-        $withQueries[$lastIdx] = $item;
+        $item = $withQueries[$lastIdx];
+        $withQueries[$lastIdx] = new WithQueryItem(
+            $item->recursive,
+            $item->queryName,
+            array_values($names),
+            $item->materialized,
+            $item->query,
+        );
 
         return new self($withQueries);
     }
@@ -42,29 +45,33 @@ final class WithWithBuilder
      */
     public function as(WithQuery $query): WithBuilder
     {
-        return $this->asWithMaterialized($query, null);
+        return $this->withBody($query, null);
     }
 
     public function asMaterialized(WithQuery $query): WithBuilder
     {
-        return $this->asWithMaterialized($query, true);
+        return $this->withBody($query, true);
     }
 
     public function asNotMaterialized(WithQuery $query): WithBuilder
     {
-        return $this->asWithMaterialized($query, false);
+        return $this->withBody($query, false);
     }
 
-    private function asWithMaterialized(WithQuery $query, ?bool $materialized): WithBuilder
+    private function withBody(WithQuery $query, ?bool $materialized): WithBuilder
     {
         $withQueries = $this->withQueries;
         $lastIdx = array_key_last($withQueries);
         assert($lastIdx !== null);
 
-        $item = clone $withQueries[$lastIdx];
-        $item->query = $query;
-        $item->materialized = $materialized;
-        $withQueries[$lastIdx] = $item;
+        $item = $withQueries[$lastIdx];
+        $withQueries[$lastIdx] = new WithQueryItem(
+            $item->recursive,
+            $item->queryName,
+            $item->columnNames,
+            $materialized,
+            $query,
+        );
 
         return new WithBuilder($withQueries);
     }

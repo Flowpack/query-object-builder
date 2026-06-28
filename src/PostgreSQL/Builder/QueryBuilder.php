@@ -5,28 +5,20 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * Entry point for turning a {@see SqlWriter} into an SQL string with bound
- * arguments.
- *
- * This mirrors the Go `builder.QueryBuilder`: the actual SQL generation is
- * driver-independent, drivers only differ in how the resulting SQL and
- * arguments are executed.
+ * Turns a query into an SQL string with its bound positional arguments.
  */
 final class QueryBuilder
 {
-    /** @var array<string, mixed> */
-    private array $namedArgs = [];
-
-    private bool $validating = true;
-
+    /**
+     * @param array<string, mixed> $namedArgs
+     */
     public function __construct(
         private readonly SqlWriter $writer,
+        private readonly array $namedArgs = [],
+        private readonly bool $validating = true,
     ) {
     }
 
-    /**
-     * Start a new query builder based on the given SqlWriter.
-     */
     public static function build(SqlWriter $writer): self
     {
         return new self($writer);
@@ -42,6 +34,7 @@ final class QueryBuilder
     {
         $sb = new SqlBuilder($this->validating);
 
+        // A top-level query is written without the parentheses it would get as a subquery.
         if ($this->writer instanceof InnerSqlWriter) {
             $this->writer->innerWriteSql($sb);
         } else {
@@ -74,9 +67,7 @@ final class QueryBuilder
      */
     public function withNamedArgs(array $args): self
     {
-        $this->namedArgs = $args;
-
-        return $this;
+        return new self($this->writer, $args, $this->validating);
     }
 
     /**
@@ -84,8 +75,6 @@ final class QueryBuilder
      */
     public function withoutValidation(): self
     {
-        $this->validating = false;
-
-        return $this;
+        return new self($this->writer, $this->namedArgs, false);
     }
 }

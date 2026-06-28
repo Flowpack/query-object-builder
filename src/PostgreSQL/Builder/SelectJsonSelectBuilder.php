@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * The builder state right after setting/modifying the JSON selection (via
- * {@see SelectBuilder::applySelectJson()}).
- *
- * Here {@see as()} aliases the JSON selection, which is always the first element
- * of the select list.
+ * The builder state right after setting or modifying the JSON selection (via
+ * {@see SelectBuilder::applySelectJson()}), where {@see as()} aliases it. The
+ * JSON selection is always the first element of the select list.
  */
 final class SelectJsonSelectBuilder extends SelectBuilder
 {
@@ -18,9 +16,6 @@ final class SelectJsonSelectBuilder extends SelectBuilder
      */
     public function as(string $alias): self
     {
-        $parts = clone $this->parts;
-        $parts->selectJsonAlias = $alias;
-
-        return $this->into(self::class, $parts);
+        return $this->derive(self::class, selectJsonAlias: $alias);
     }
 }

@@ -7,8 +7,7 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 /**
  * A join within a FROM clause.
  *
- * Mutable by design: the immutable builders copy it (via clone) before setting
- * the alias / ON condition / USING columns, see {@see JoinSelectBuilder}.
+ * @internal
  */
 final class Join implements FromExp
 {
@@ -16,14 +15,13 @@ final class Join implements FromExp
      * @param list<string> $using
      */
     public function __construct(
-        public JoinType $joinType,
-        public bool     $lateral,
-        public FromExp  $from,
-        public string   $alias = '',
-        public ?Exp     $on = null,
-        public array    $using = [],
-    )
-    {
+        public readonly JoinType $joinType,
+        public readonly bool $lateral,
+        public readonly FromExp $from,
+        public readonly string $alias = '',
+        public readonly ?Exp $on = null,
+        public readonly array $using = [],
+    ) {
     }
 
     public function writeSql(SqlBuilder $sb): void
@@ -37,22 +35,14 @@ final class Join implements FromExp
         $this->from->writeSql($sb);
 
         if ($this->alias !== '') {
-            $sb->writeString(' AS ');
-            $sb->writeString($this->alias);
+            $sb->writeString(' AS ' . $this->alias);
         }
 
         if ($this->on !== null) {
             $sb->writeString(' ON ');
             $this->on->writeSql($sb);
         } elseif ($this->using !== []) {
-            $sb->writeString(' USING (');
-            foreach ($this->using as $i => $col) {
-                if ($i > 0) {
-                    $sb->writeString(', ');
-                }
-                $sb->writeString($col);
-            }
-            $sb->writeString(')');
+            $sb->writeString(' USING (' . implode(', ', $this->using) . ')');
         }
     }
 }

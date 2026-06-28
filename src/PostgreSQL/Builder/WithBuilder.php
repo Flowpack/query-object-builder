@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * Builds a WITH clause. Once the queries are defined, continue with the main
- * statement via {@see select()} (later also insert/update/delete).
- *
- * Immutable: every method returns a new builder.
- *
- * Port of the Go `builder.WithBuilder`.
+ * Builds a WITH clause; once the queries are defined, continue with the main
+ * statement via {@see select()}.
  */
 final class WithBuilder
 {
@@ -51,10 +47,7 @@ final class WithBuilder
 
     private function startWithQuery(string $queryName, bool $recursive): WithWithBuilder
     {
-        $withQueries = $this->withQueries;
-        $withQueries[] = new WithQueryItem($recursive, $queryName);
-
-        return new WithWithBuilder($withQueries);
+        return new WithWithBuilder([...$this->withQueries, new WithQueryItem($recursive, $queryName)]);
     }
 
     /**
@@ -62,6 +55,6 @@ final class WithBuilder
      */
     public function select(Exp ...$exps): SelectSelectBuilder
     {
-        return (new SelectBuilder(new SelectQueryParts(), $this->withQueries))->select(...$exps);
+        return (new SelectBuilder(withQueries: $this->withQueries))->select(...$exps);
     }
 }

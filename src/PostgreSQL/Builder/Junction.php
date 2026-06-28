@@ -9,8 +9,6 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  *
  * A junction of a single expression writes just that expression. Nested
  * junctions are wrapped in parentheses.
- *
- * Port of the Go `builder.junctionExp` / `And` / `Or`.
  */
 final class Junction implements Exp, Precedencer
 {

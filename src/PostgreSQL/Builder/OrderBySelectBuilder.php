@@ -5,56 +5,47 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * The builder state right after adding an ORDER BY expression.
- *
- * Here {@see asc()} / {@see desc()} and {@see nullsFirst()} / {@see nullsLast()}
- * act on the last added order by clause.
+ * The builder state right after adding an ORDER BY expression, where
+ * {@see asc()} / {@see desc()} and {@see nullsFirst()} / {@see nullsLast()} act
+ * on that last order by term.
  */
 final class OrderBySelectBuilder extends SelectBuilder
 {
     public function asc(): self
     {
-        return $this->setOrder(SortOrder::Asc);
+        return $this->derive(self::class, orderBys: $this->rebuildLastOrderBy(order: SortOrder::Asc));
     }
 
     public function desc(): self
     {
-        return $this->setOrder(SortOrder::Desc);
+        return $this->derive(self::class, orderBys: $this->rebuildLastOrderBy(order: SortOrder::Desc));
     }
 
     public function nullsFirst(): self
     {
-        return $this->setNulls(SortNulls::First);
+        return $this->derive(self::class, orderBys: $this->rebuildLastOrderBy(nulls: SortNulls::First));
     }
 
     public function nullsLast(): self
     {
-        return $this->setNulls(SortNulls::Last);
+        return $this->derive(self::class, orderBys: $this->rebuildLastOrderBy(nulls: SortNulls::Last));
     }
 
-    private function setOrder(SortOrder $order): self
+    /**
+     * Return the order by list with the last term replaced by a copy carrying the
+     * given overrides.
+     *
+     * @return list<OrderByClause>
+     */
+    private function rebuildLastOrderBy(?SortOrder $order = null, ?SortNulls $nulls = null): array
     {
-        $parts = clone $this->parts;
-        $lastIdx = array_key_last($parts->orderBys);
+        $orderBys = $this->parts->orderBys;
+        $lastIdx = array_key_last($orderBys);
         assert($lastIdx !== null);
 
-        $clause = clone $parts->orderBys[$lastIdx];
-        $clause->order = $order;
-        $parts->orderBys[$lastIdx] = $clause;
+        $clause = $orderBys[$lastIdx];
+        $orderBys[$lastIdx] = new OrderByClause($clause->exp, $order ?? $clause->order, $nulls ?? $clause->nulls);
 
-        return $this->into(self::class, $parts);
-    }
-
-    private function setNulls(SortNulls $nulls): self
-    {
-        $parts = clone $this->parts;
-        $lastIdx = array_key_last($parts->orderBys);
-        assert($lastIdx !== null);
-
-        $clause = clone $parts->orderBys[$lastIdx];
-        $clause->nulls = $nulls;
-        $parts->orderBys[$lastIdx] = $clause;
-
-        return $this->into(self::class, $parts);
+        return $orderBys;
     }
 }

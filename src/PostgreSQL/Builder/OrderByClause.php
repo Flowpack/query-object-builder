@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * A single ORDER BY clause: an expression with optional sort order and nulls
- * ordering.
+ * A single ORDER BY term: an expression with optional sort direction and nulls
+ * placement.
  *
- * Mutable by design: the immutable builders copy it (via clone) before setting
- * the order / nulls, see {@see OrderBySelectBuilder}.
+ * @internal
  */
 final class OrderByClause
 {
     public function __construct(
-        public Exp $exp,
-        public ?SortOrder $order = null,
-        public ?SortNulls $nulls = null,
+        public readonly Exp $exp,
+        public readonly ?SortOrder $order = null,
+        public readonly ?SortNulls $nulls = null,
     ) {
     }
 

@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 
 /**
- * The builder state right after adding a plain item to the FROM clause.
- *
- * Here {@see as()} aliases the last added from item.
+ * The builder state right after adding a plain item to the FROM clause, where
+ * {@see as()} aliases the last added from item.
  */
 final class FromSelectBuilder extends SelectBuilder
 {
@@ -16,14 +15,12 @@ final class FromSelectBuilder extends SelectBuilder
      */
     public function as(string $alias): self
     {
-        $parts = clone $this->parts;
-        $lastIdx = array_key_last($parts->from);
+        $from = $this->parts->from;
+        $lastIdx = array_key_last($from);
         assert($lastIdx !== null);
+        $item = $from[$lastIdx];
+        $from[$lastIdx] = new FromItem($item->from, $alias, $item->lateral, $item->only, $item->columnAliases);
 
-        $fromItem = clone $parts->from[$lastIdx];
-        $fromItem->alias = $alias;
-        $parts->from[$lastIdx] = $fromItem;
-
-        return $this->into(self::class, $parts);
+        return $this->derive(self::class, from: $from);
     }
 }
