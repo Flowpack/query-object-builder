@@ -14,24 +14,7 @@ class SelectBuilderTest extends TestCase
     use AssertSql;
 
     #[Test]
-    public function example1(): void
-    {
-        $q = Q::select(Q::n('f.title'), Q::n('f.did'), Q::n('d.name'), Q::n('f.date_prod'), Q::n('f.kind'))
-            ->from(Q::n('distributors'))->as('d')->join(Q::n('films'))->as('f')->using('did');
-
-        $this->assertSqlWriterEquals(
-            // language=PostgreSQL
-            <<<'SQL'
-            SELECT f.title, f.did, d.name, f.date_prod, f.kind
-                FROM distributors AS d JOIN films AS f USING (did)
-            SQL,
-            null,
-            $q,
-        );
-    }
-
-    #[Test]
-    public function withJson(): void
+    public function withAndJson(): void
     {
         $myCategory = 'SQL Hacks';
 
@@ -58,7 +41,7 @@ class SelectBuilderTest extends TestCase
             ->orderBy(Q::n('posts.created_at'))->desc()->nullsLast();
 
         $this->assertSqlWriterEquals(
-            // language=PostgreSQL
+        // language=PostgreSQL
             <<<'SQL'
             WITH author_json AS (
                 SELECT
@@ -79,6 +62,23 @@ class SelectBuilderTest extends TestCase
                 posts.created_at DESC NULLS LAST
             SQL,
             [$myCategory],
+            $q,
+        );
+    }
+
+    #[Test]
+    public function example1(): void
+    {
+        $q = Q::select(Q::n('f.title'), Q::n('f.did'), Q::n('d.name'), Q::n('f.date_prod'), Q::n('f.kind'))
+            ->from(Q::n('distributors'))->as('d')->join(Q::n('films'))->as('f')->using('did');
+
+        $this->assertSqlWriterEquals(
+        // language=PostgreSQL
+            <<<'SQL'
+            SELECT f.title, f.did, d.name, f.date_prod, f.kind
+                FROM distributors AS d JOIN films AS f USING (did)
+            SQL,
+            null,
             $q,
         );
     }
