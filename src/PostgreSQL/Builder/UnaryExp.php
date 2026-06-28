@@ -7,8 +7,10 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 /**
  * A unary expression with a prefix (e.g. `NOT x`) and/or a suffix (e.g.
  * `x IS NULL`). The operand is parenthesized when it binds less tightly.
+ *
+ * Extends {@see ExpBase} so further operators can be chained onto it.
  */
-final class UnaryExp implements Exp, Precedencer
+final class UnaryExp extends ExpBase implements Precedencer
 {
     public function __construct(
         private readonly Exp $exp,

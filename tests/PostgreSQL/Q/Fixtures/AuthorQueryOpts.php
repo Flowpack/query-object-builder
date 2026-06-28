@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Flowpack\QueryObjectBuilder\Test\PostgreSQL;
+namespace Flowpack\QueryObjectBuilder\Test\PostgreSQL\Q\Fixtures;
 
 /**
  * Test fixture: options driving how an author is queried.

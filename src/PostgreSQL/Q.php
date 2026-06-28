@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Flowpack\QueryObjectBuilder\PostgreSQL;
 
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\AggBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Arg;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\ArrayExp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\BindExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\BoolLiteral;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\CaseBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Expressions;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\ExistsExp;
@@ -75,6 +78,33 @@ final class Q
     }
 
     /**
+     * An aggregate function call (refine via {@see AggBuilder}: `distinct()`,
+     * `orderBy()`, `filter()`, `withinGroup()`).
+     */
+    public static function agg(string $name, Exp ...$exps): AggBuilder
+    {
+        return new AggBuilder($name, array_values($exps));
+    }
+
+    /**
+     * Start a CASE expression (optionally with a leading expression to compare
+     * each WHEN against).
+     */
+    public static function case(Exp ...$exp): CaseBuilder
+    {
+        return new CaseBuilder($exp[0] ?? null);
+    }
+
+    /**
+     * A named argument placeholder; bind its value via
+     * {@see QueryBuilder::withNamedArgs()}. Reusing the same name reuses the placeholder.
+     */
+    public static function bind(string $name): BindExp
+    {
+        return new BindExp($name);
+    }
+
+    /**
      * A `ROWS FROM ( ... )` FROM item combining several set-returning functions.
      */
     public static function rowsFrom(FuncBuilder $fn, FuncBuilder ...$fns): RowsFromBuilder
@@ -104,6 +134,14 @@ final class Q
     public static function not(Exp $exp): UnaryExp
     {
         return new UnaryExp($exp, Precedence::of('NOT'), prefix: 'NOT');
+    }
+
+    /**
+     * Arithmetic negation (`- ...`) of a numeric expression.
+     */
+    public static function neg(Exp $exp): UnaryExp
+    {
+        return new UnaryExp($exp, 4, prefix: '-'); // unary minus precedence
     }
 
     /**

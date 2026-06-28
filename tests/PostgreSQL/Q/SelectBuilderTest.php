@@ -6,8 +6,8 @@ use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\JsonBuildObjectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\QueryBuilderException;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SelectBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
-use Flowpack\QueryObjectBuilder\Test\PostgreSQL\AuthorQueryOpts;
-use Flowpack\QueryObjectBuilder\Test\PostgreSQL\BookQueryOpts;
+use Flowpack\QueryObjectBuilder\Test\PostgreSQL\Q\Fixtures\AuthorQueryOpts;
+use Flowpack\QueryObjectBuilder\Test\PostgreSQL\Q\Fixtures\BookQueryOpts;
 
 describe('SelectBuilder', function () {
     it('builds a WITH query selecting JSON', function () {
