@@ -14,6 +14,7 @@ class UpdateBuilder implements InnerSqlWriter, WithQuery
 {
     use RendersWithQueries;
     use RendersReturning;
+    use WritesParenthesizedSql;
 
     /**
      * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
@@ -130,18 +131,6 @@ class UpdateBuilder implements InnerSqlWriter, WithQuery
             $whereConjunction ?? $this->whereConjunction,
             $returningItems ?? $this->returningItems,
         );
-    }
-
-    /**
-     * Write the update wrapped in parentheses (as a WITH body / subquery).
-     *
-     * @internal
-     */
-    public function writeSql(SqlBuilder $sb): void
-    {
-        $sb->writeString('(');
-        $this->innerWriteSql($sb);
-        $sb->writeString(')');
     }
 
     /**

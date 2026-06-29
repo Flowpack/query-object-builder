@@ -23,6 +23,7 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
 class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, SelectOrExpressions
 {
     use RendersWithQueries;
+    use WritesParenthesizedSql;
 
     /**
      * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
@@ -324,18 +325,6 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
         );
 
         return new $class($parts, $withQueries ?? $this->withQueries, $combinations ?? $this->combinations);
-    }
-
-    /**
-     * Write the select as a subquery expression, wrapped in parentheses.
-     *
-     * @internal
-     */
-    public function writeSql(SqlBuilder $sb): void
-    {
-        $sb->writeString('(');
-        $this->innerWriteSql($sb);
-        $sb->writeString(')');
     }
 
     /**
