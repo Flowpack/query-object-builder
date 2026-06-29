@@ -1,8 +1,28 @@
 {
   "name": "flowpack/query-object-builder",
-  "description": "A builder for query object expressions for fully types database syntax (MySQL, MariaDB, PostgreSQL)",
+  "description": "A fluent, immutable, fully-typed SQL query builder for PHP (PostgreSQL, with more dialects planned).",
   "type": "library",
+  "keywords": [
+    "sql",
+    "query-builder",
+    "postgresql",
+    "postgres",
+    "database",
+    "immutable",
+    "json"
+  ],
+  "homepage": "https://github.com/Flowpack/query-object-builder",
   "license": "GPL-3.0-or-later",
+  "authors": [
+    {
+      "name": "Christopher Hlubek",
+      "email": "christopher.hlubek@networkteam.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/Flowpack/query-object-builder/issues",
+    "source": "https://github.com/Flowpack/query-object-builder"
+  },
   "require": {
     "php": ">=8.4"
   },
@@ -26,5 +46,9 @@
     "psr-4": {
       "Flowpack\\QueryObjectBuilder\\Test\\": "tests/"
     }
+  },
+  "scripts": {
+    "test": "pest",
+    "analyse": "phpstan analyse"
   }
 }
