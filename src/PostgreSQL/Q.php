@@ -10,9 +10,12 @@ use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\ArrayExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\BindExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\BoolLiteral;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\CaseBuilder;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\DefaultLiteral;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\DeleteBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\Expressions;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\ExistsExp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\InsertBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FloatLiteral;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\FuncExp;
@@ -32,6 +35,7 @@ use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SqlWriter;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\StringLiteral;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SubqueryExp;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\UnaryExp;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\UpdateBuilder;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithQueryItem;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\WithWithBuilder;
 
@@ -61,6 +65,30 @@ final class Q
     public static function selectJson(JsonBuildObjectBuilder $obj): SelectJsonSelectBuilder
     {
         return (new SelectBuilder())->applySelectJson(static fn (JsonBuildObjectBuilder $existing): JsonBuildObjectBuilder => $obj);
+    }
+
+    /**
+     * Start an INSERT statement into the given table.
+     */
+    public static function insertInto(IdentExp $tableName): InsertBuilder
+    {
+        return new InsertBuilder($tableName);
+    }
+
+    /**
+     * Start an UPDATE statement on the given table.
+     */
+    public static function update(IdentExp $tableName): UpdateBuilder
+    {
+        return new UpdateBuilder($tableName);
+    }
+
+    /**
+     * Start a DELETE statement on the given table.
+     */
+    public static function deleteFrom(IdentExp $tableName): DeleteBuilder
+    {
+        return new DeleteBuilder($tableName);
     }
 
     /**
@@ -240,6 +268,14 @@ final class Q
     public static function null(): NullLiteral
     {
         return new NullLiteral();
+    }
+
+    /**
+     * The SQL `DEFAULT` keyword, usable as a value in INSERT / UPDATE.
+     */
+    public static function default(): DefaultLiteral
+    {
+        return new DefaultLiteral();
     }
 
     /**

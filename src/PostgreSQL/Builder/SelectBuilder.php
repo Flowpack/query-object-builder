@@ -22,6 +22,8 @@ namespace Flowpack\QueryObjectBuilder\PostgreSQL\Builder;
  */
 class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, SelectOrExpressions
 {
+    use RendersWithQueries;
+
     /**
      * @param list<WithQueryItem> $withQueries the leading WITH clause, if any
      * @param list<Combination> $combinations previous selects combined via UNION / INTERSECT / EXCEPT
@@ -344,7 +346,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
     public function innerWriteSql(SqlBuilder $sb): void
     {
         if ($this->withQueries !== []) {
-            $this->writeWithQueries($sb);
+            $this->writeWithQueries($sb, $this->withQueries);
         }
 
         // Previous selects combined via UNION / INTERSECT / EXCEPT come first.
@@ -386,27 +388,6 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
             $sb->writeString(' ');
             $this->parts->lockingClause->writeSql($sb);
         }
-    }
-
-    private function writeWithQueries(SqlBuilder $sb): void
-    {
-        $hasRecursive = false;
-        foreach ($this->withQueries as $w) {
-            if ($w->recursive) {
-                $hasRecursive = true;
-                break;
-            }
-        }
-
-        // RECURSIVE is written once, right after WITH, and applies to all queries.
-        $sb->writeString($hasRecursive ? 'WITH RECURSIVE ' : 'WITH ');
-        foreach ($this->withQueries as $i => $w) {
-            if ($i > 0) {
-                $sb->writeString(',');
-            }
-            $w->writeSql($sb);
-        }
-        $sb->writeString(' ');
     }
 
     private function writeSelectParts(SqlBuilder $sb, SelectQueryParts $parts): void

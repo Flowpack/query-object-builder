@@ -73,4 +73,28 @@ final class WithBuilder
     {
         return (new SelectBuilder(withQueries: $this->withQueries))->select(...$exps);
     }
+
+    /**
+     * Start an INSERT statement following the WITH clause.
+     */
+    public function insertInto(IdentExp $tableName): InsertBuilder
+    {
+        return new InsertBuilder($tableName, $this->withQueries);
+    }
+
+    /**
+     * Start an UPDATE statement following the WITH clause.
+     */
+    public function update(IdentExp $tableName): UpdateBuilder
+    {
+        return new UpdateBuilder($tableName, $this->withQueries);
+    }
+
+    /**
+     * Start a DELETE statement following the WITH clause.
+     */
+    public function deleteFrom(IdentExp $tableName): DeleteBuilder
+    {
+        return new DeleteBuilder($tableName, $this->withQueries);
+    }
 }

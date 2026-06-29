@@ -162,7 +162,7 @@ abstract class ExpBase implements Exp
         return $this->op('!~*', $rgt);
     }
 
-    public function concat(Exp $rgt): Exp
+    public function concat(Exp $rgt): OpExp
     {
         return $this->op('||', $rgt);
     }
