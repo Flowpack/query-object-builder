@@ -9,6 +9,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\BindExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BoolLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\CaseBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\CastExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\ConvertExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\DefaultLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\DeleteBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
@@ -19,6 +20,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\FrameBound;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IdentExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\InsertBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\IntervalExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
@@ -276,11 +278,52 @@ final class Q
     }
 
     /**
+     * A `CONVERT(expr, type)` expression — the function-call form of a type cast.
+     */
+    public static function convert(Exp $exp, string $type): ConvertExp
+    {
+        return new ConvertExp($exp, new TypeExp($type));
+    }
+
+    /**
+     * A temporal `INTERVAL expr unit` operand (e.g. `Q::interval(Q::int(1), 'DAY')`
+     * for `INTERVAL 1 DAY`), for date arithmetic and `Q\Func::dateAdd()` / `dateSub()`.
+     */
+    public static function interval(Exp $expr, string $unit): IntervalExp
+    {
+        return new IntervalExp($expr, $unit);
+    }
+
+    /**
      * Build a `COALESCE(...)` expression.
      */
     public static function coalesce(Exp $exp, Exp ...$rest): FuncExp
     {
         return new FuncExp('COALESCE', array_values([$exp, ...$rest]));
+    }
+
+    /**
+     * Build a `NULLIF(a, b)` expression (returns NULL when the two are equal).
+     */
+    public static function nullif(Exp $a, Exp $b): FuncExp
+    {
+        return new FuncExp('NULLIF', [$a, $b]);
+    }
+
+    /**
+     * Build a `GREATEST(...)` expression (the largest of its arguments).
+     */
+    public static function greatest(Exp $exp, Exp ...$rest): FuncExp
+    {
+        return new FuncExp('GREATEST', array_values([$exp, ...$rest]));
+    }
+
+    /**
+     * Build a `LEAST(...)` expression (the smallest of its arguments).
+     */
+    public static function least(Exp $exp, Exp ...$rest): FuncExp
+    {
+        return new FuncExp('LEAST', array_values([$exp, ...$rest]));
     }
 
     /**

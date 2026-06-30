@@ -6,7 +6,10 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Q;
 
 use Flowpack\QueryObjectBuilder\MySQL\Builder\AggBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\ExtractExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\GroupConcatBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\TrimExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WindowFuncBuilder;
 
 /**
@@ -59,6 +62,96 @@ final class Func
     public static function max(Exp $expr): AggBuilder
     {
         return new AggBuilder('MAX', [$expr]);
+    }
+
+    /**
+     * Build a `GROUP_CONCAT(...)` aggregate. Refine with
+     * {@see GroupConcatBuilder::distinct()} / {@see GroupConcatBuilder::orderBy()} /
+     * {@see GroupConcatBuilder::separator()}.
+     */
+    public static function groupConcat(Exp $expr, Exp ...$rest): GroupConcatBuilder
+    {
+        return new GroupConcatBuilder(array_values([$expr, ...$rest]));
+    }
+
+    // Conditional functions
+
+    /**
+     * Build an `IF(condition, then, else)` expression.
+     */
+    public static function if(Exp $condition, Exp $then, Exp $else): FuncExp
+    {
+        return new FuncExp('IF', [$condition, $then, $else]);
+    }
+
+    /**
+     * Build an `IFNULL(a, b)` expression (returns `b` when `a` is NULL).
+     */
+    public static function ifnull(Exp $a, Exp $b): FuncExp
+    {
+        return new FuncExp('IFNULL', [$a, $b]);
+    }
+
+    // Date / time functions with special shapes
+
+    /**
+     * Build an `EXTRACT(unit FROM source)` expression (e.g. `extract('YEAR', $d)`).
+     */
+    public static function extract(string $unit, Exp $from): ExtractExp
+    {
+        return new ExtractExp($unit, $from);
+    }
+
+    /**
+     * Build a `DATE_ADD(date, interval)` expression. Pass the interval via
+     * `Q::interval(...)` (e.g. `dateAdd($d, Q::interval(Q::int(1), 'DAY'))`).
+     */
+    public static function dateAdd(Exp $date, Exp $interval): FuncExp
+    {
+        return new FuncExp('DATE_ADD', [$date, $interval]);
+    }
+
+    /**
+     * Build a `DATE_SUB(date, interval)` expression. Pass the interval via
+     * `Q::interval(...)`.
+     */
+    public static function dateSub(Exp $date, Exp $interval): FuncExp
+    {
+        return new FuncExp('DATE_SUB', [$date, $interval]);
+    }
+
+    // String trimming
+
+    /**
+     * Build a `TRIM(str)` expression (removes leading and trailing spaces).
+     */
+    public static function trim(Exp $str): TrimExp
+    {
+        return new TrimExp($str);
+    }
+
+    /**
+     * Build a `TRIM(LEADING remstr FROM str)` expression.
+     */
+    public static function trimLeading(Exp $remstr, Exp $str): TrimExp
+    {
+        return new TrimExp($str, 'LEADING', $remstr);
+    }
+
+    /**
+     * Build a `TRIM(TRAILING remstr FROM str)` expression.
+     */
+    public static function trimTrailing(Exp $remstr, Exp $str): TrimExp
+    {
+        return new TrimExp($str, 'TRAILING', $remstr);
+    }
+
+    /**
+     * Build a `TRIM(BOTH remstr FROM str)` expression.
+     */
+    public static function trimBoth(Exp $remstr, Exp $str): TrimExp
+    {
+        return new TrimExp($str, 'BOTH', $remstr);
     }
 
     // Nonaggregate window functions — each requires an `OVER` clause; call
