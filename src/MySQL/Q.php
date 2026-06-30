@@ -7,6 +7,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Arg;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BindExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BoolLiteral;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\CaseBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\DefaultLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Expressions;
@@ -161,6 +162,15 @@ final class Q
     public static function coalesce(Exp $exp, Exp ...$rest): FuncExp
     {
         return new FuncExp('COALESCE', array_values([$exp, ...$rest]));
+    }
+
+    /**
+     * Start a CASE expression (optionally with a leading expression to compare
+     * each WHEN against).
+     */
+    public static function case(Exp ...$exp): CaseBuilder
+    {
+        return new CaseBuilder($exp[0] ?? null);
     }
 
     /**
