@@ -9,9 +9,10 @@ exhaustive per-area findings live next to this file's source material (the
 **Version anchors:** MySQL **8.4 (LTS)**, MariaDB **11.x GA** (11.8 LTS).
 Every feature gated below the anchor is treated as *not available*.
 
-> Status: the **Architecture** section is a recommendation pending confirmation.
-> Everything else (the keep/drop/replace/add tables, function set, version gates)
-> is dialect-fact and independent of that decision.
+> Status: architecture **decided** (per-variant subclasses; `src/MySQL` +
+> `src/MariaDB`). Implementation in progress — foundation, expression layer and
+> SELECT have landed for MySQL. The keep/drop/replace/add tables, function set and
+> version gates are dialect-fact.
 
 ---
 
@@ -44,7 +45,7 @@ Every feature gated below the anchor is treated as *not available*.
 
 ---
 
-## 2. Architecture (proposed)
+## 2. Architecture
 
 A **new namespace family** (`MySQL` + `MariaDB`), built by **duplicating the
 PostgreSQL builder and adapting it** — *not* by extracting a shared `Common/`
@@ -63,6 +64,23 @@ src/MariaDB/
   Builder/            # the MariaDB concrete builder ladder (RETURNING, …),
                       #   reusing the primitives + abstract bases from src/MySQL/Builder
 ```
+
+### Dialect-native design (principle)
+
+Each dialect builder is first-class and models *its own* SQL — it is **not** a
+diff against another dialect. Two consequences enforced throughout:
+
+- **Natural look:** the builder mirrors how the SQL reads. Genuine operators
+  (`=`, `<=>`, `+`, `LIKE`, `REGEXP`, `->`, `IS NULL`, ...) are chainable methods
+  on the expression base; things that read as **function calls** (`CONCAT`,
+  `POW`, `CAST`, `JSON_CONTAINS`, ...) are constructed via the facade
+  (`Q::func` / `Q::cast` / `Q\Func`), never as operator-style chained methods that
+  merely emit a function. The MySQL `ExpBase` therefore carries only the dialect's
+  actual operators — it is not a copy of another dialect's expression surface.
+- **Self-standing comments:** comments describe what the code does in this
+  dialect; they never frame it relative to another dialect ("PostgreSQL has X",
+  "no FULL JOIN here", "unlike PG"). A standing rule, analogous to the no-Go rule
+  in AGENTS.md — verified continuously, with a final sweep in stage 8.
 
 ### Variant modelling — decided: per-variant subclasses (compile-time safe)
 
@@ -244,7 +262,10 @@ tail (excluded) apply.
 
 ## 6. Expression / operator layer
 
-The chokepoint. New `ExpBase` for the MySQL family.
+The chokepoint. New `ExpBase` for the MySQL family. Per the dialect-native
+principle (§2), only genuine **operators** are chainable `ExpBase` methods; the
+"replace → function" rows below are built through the facade (`Q::func`,
+`Q::cast`, `Q\Func`), not as expression methods. The table maps SQL semantics:
 
 | PG operator | Verdict | Render (both engines unless noted) |
 |---|---|---|
