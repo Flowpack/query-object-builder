@@ -23,6 +23,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Precedence;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\ReplaceBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectSelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter;
@@ -68,6 +69,14 @@ final class Q
     public static function inserted(string $column): IdentExp
     {
         return IdentExp::n('new.' . $column);
+    }
+
+    /**
+     * Start a REPLACE statement into the given table.
+     */
+    public static function replaceInto(IdentExp $tableName): ReplaceBuilder
+    {
+        return new ReplaceBuilder($tableName);
     }
 
     /**
