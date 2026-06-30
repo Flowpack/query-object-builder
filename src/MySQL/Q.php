@@ -17,6 +17,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\FloatLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FrameBound;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IdentExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\InsertBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
@@ -50,6 +51,23 @@ final class Q
     public static function select(Exp ...$exps): SelectSelectBuilder
     {
         return (new SelectBuilder())->select(...$exps);
+    }
+
+    /**
+     * Start an INSERT statement into the given table.
+     */
+    public static function insertInto(IdentExp $tableName): InsertBuilder
+    {
+        return new InsertBuilder($tableName);
+    }
+
+    /**
+     * Reference the value of `column` from the row that would have been inserted,
+     * for use inside `ON DUPLICATE KEY UPDATE` (rendered as `new.column`).
+     */
+    public static function inserted(string $column): IdentExp
+    {
+        return IdentExp::n('new.' . $column);
     }
 
     /**
