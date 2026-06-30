@@ -10,6 +10,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\BoolLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\CaseBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\DefaultLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\ExistsExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Expressions;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FloatLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
@@ -19,9 +20,14 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Precedence;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectSelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\StringLiteral;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\SubqueryExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\UnaryExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\WithQueryItem;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\WithWithBuilder;
 
 /**
  * Entry point (facade) for building MySQL queries.
@@ -33,6 +39,54 @@ final class Q
 {
     private function __construct()
     {
+    }
+
+    /**
+     * Select the given output expressions and start a new select builder.
+     */
+    public static function select(Exp ...$exps): SelectSelectBuilder
+    {
+        return (new SelectBuilder())->select(...$exps);
+    }
+
+    /**
+     * Start a WITH clause. Supply the query body via {@see WithWithBuilder::as()}.
+     */
+    public static function with(string $queryName): WithWithBuilder
+    {
+        return new WithWithBuilder([new WithQueryItem(false, $queryName)]);
+    }
+
+    /**
+     * Start a WITH RECURSIVE clause.
+     */
+    public static function withRecursive(string $queryName): WithWithBuilder
+    {
+        return new WithWithBuilder([new WithQueryItem(true, $queryName)]);
+    }
+
+    /**
+     * An `EXISTS (subquery)` expression.
+     */
+    public static function exists(SelectBuilder $subquery): ExistsExp
+    {
+        return new ExistsExp($subquery);
+    }
+
+    /**
+     * An `ANY (...)` row/subquery comparison operand.
+     */
+    public static function any(Exp $exp): SubqueryExp
+    {
+        return new SubqueryExp('ANY', $exp);
+    }
+
+    /**
+     * An `ALL (...)` row/subquery comparison operand.
+     */
+    public static function all(Exp $exp): SubqueryExp
+    {
+        return new SubqueryExp('ALL', $exp);
     }
 
     /**
