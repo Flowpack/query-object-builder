@@ -20,6 +20,7 @@ final class SelectQueryParts
      * @param list<Exp> $whereConjunction conditions joined with AND
      * @param list<Exp> $groupBys the GROUP BY expressions
      * @param list<Exp> $havingConjunction conditions joined with AND
+     * @param list<NamedWindow> $windows the WINDOW clause definitions
      * @param list<OrderByClause> $orderBys
      */
     public function __construct(
@@ -30,6 +31,7 @@ final class SelectQueryParts
         public readonly array $groupBys = [],
         public readonly bool $groupByWithRollup = false,
         public readonly array $havingConjunction = [],
+        public readonly array $windows = [],
         public readonly array $orderBys = [],
         public readonly ?Exp $limit = null,
         public readonly ?Exp $offset = null,
@@ -41,7 +43,7 @@ final class SelectQueryParts
     {
         return !$this->distinct && $this->selectList === [] && $this->from === []
             && $this->whereConjunction === [] && $this->groupBys === [] && $this->havingConjunction === []
-            && $this->orderBys === [] && $this->limit === null && $this->offset === null
+            && $this->windows === [] && $this->orderBys === [] && $this->limit === null && $this->offset === null
             && $this->lockingClause === null;
     }
 }

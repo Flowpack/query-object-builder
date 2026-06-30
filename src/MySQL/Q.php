@@ -14,6 +14,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\ExistsExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Expressions;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FloatLiteral;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\FrameBound;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IdentExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntLiteral;
@@ -244,6 +245,48 @@ final class Q
     public static function case(Exp ...$exp): CaseBuilder
     {
         return new CaseBuilder($exp[0] ?? null);
+    }
+
+    // Window frame bounds (for `ROWS` / `RANGE` frame clauses)
+
+    /**
+     * The `CURRENT ROW` frame bound.
+     */
+    public static function currentRow(): FrameBound
+    {
+        return FrameBound::currentRow();
+    }
+
+    /**
+     * The `UNBOUNDED PRECEDING` frame bound (the start of the partition).
+     */
+    public static function unboundedPreceding(): FrameBound
+    {
+        return FrameBound::unboundedPreceding();
+    }
+
+    /**
+     * The `UNBOUNDED FOLLOWING` frame bound (the end of the partition).
+     */
+    public static function unboundedFollowing(): FrameBound
+    {
+        return FrameBound::unboundedFollowing();
+    }
+
+    /**
+     * An `expr PRECEDING` frame bound (the given offset before the current row).
+     */
+    public static function preceding(Exp $offset): FrameBound
+    {
+        return FrameBound::preceding($offset);
+    }
+
+    /**
+     * An `expr FOLLOWING` frame bound (the given offset after the current row).
+     */
+    public static function following(Exp $offset): FrameBound
+    {
+        return FrameBound::following($offset);
     }
 
     /**

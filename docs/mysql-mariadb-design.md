@@ -444,6 +444,22 @@ Deferred + Excluded surface in the dialect README "Limitations" section (stage 8
 | MariaDB `OFFSET..FETCH FIRST/NEXT ... ONLY/WITH TIES` | Deferred | LIMIT/OFFSET covers the common case |
 | MariaDB recursive-CTE `CYCLE col RESTRICT` | Deferred | PG builder exposes no CYCLE either |
 
+### Window functions
+
+The `over_clause` (`OVER (window_spec)` and `OVER window_name`), the named `WINDOW`
+clause, `PARTITION BY`, the window `ORDER BY`, and the `frame_clause`
+(`ROWS`/`RANGE` with `CURRENT ROW` / `UNBOUNDED PRECEDING|FOLLOWING` /
+`expr PRECEDING|FOLLOWING` bounds, single-bound and `BETWEEN … AND …` forms) are
+all **Supported**. The window-only functions `ROW_NUMBER`, `RANK`, `DENSE_RANK`,
+`PERCENT_RANK`, `CUME_DIST`, `NTILE`, `LAG`, `LEAD`, `FIRST_VALUE`, `LAST_VALUE`,
+`NTH_VALUE` are Supported via `Q\Func`.
+
+| Production | Status | Reason |
+|---|---|---|
+| `GROUPS` frame units | N/A (not in grammar) | only `ROWS`/`RANGE` exist in MySQL 8.4 / MariaDB 11.x |
+| frame `EXCLUDE CURRENT ROW`/`GROUP`/`TIES`/`NO OTHERS` | N/A (not in grammar) | frame exclusion is unsupported by both engines |
+| aggregate-as-window beyond `count`/`sum`/`avg`/`min`/`max` | Deferred | the full curated aggregate set (and its `over()`) lands with the function facade (§7, stage 6) |
+
 ### INSERT / REPLACE
 | Clause | Status | Reason |
 |---|---|---|
