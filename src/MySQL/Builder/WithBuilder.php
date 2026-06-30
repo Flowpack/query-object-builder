@@ -65,4 +65,12 @@ final class WithBuilder
     {
         return new UpdateBuilder($tableName, $this->withQueries);
     }
+
+    /**
+     * Start a DELETE statement using the WITH clause's common table expressions.
+     */
+    public function deleteFrom(IdentExp $tableName): DeleteBuilder
+    {
+        return new DeleteBuilder($tableName, $this->withQueries);
+    }
 }

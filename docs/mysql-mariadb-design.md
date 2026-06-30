@@ -461,19 +461,40 @@ all **Supported**. The window-only functions `ROW_NUMBER`, `RANK`, `DENSE_RANK`,
 | aggregate-as-window beyond `count`/`sum`/`avg`/`min`/`max` | Deferred | the full curated aggregate set (and its `over()`) lands with the function facade (§7, stage 6) |
 
 ### INSERT / REPLACE
+
+INSERT (`columnNames`/`values`/`setMap`/`query`/`defaultValues`→`() VALUES ()`,
+`IGNORE`, `ON DUPLICATE KEY UPDATE` with the `AS new` row alias reached via
+`Q::inserted('col')`) and REPLACE (same source forms, no `ON DUPLICATE KEY UPDATE`)
+are **Supported**. `RETURNING` on INSERT/REPLACE is MariaDB-only (stage 7); absent
+on MySQL.
+
 | Clause | Status | Reason |
 |---|---|---|
 | `LOW_PRIORITY`/`HIGH_PRIORITY`/`DELAYED` | Excluded | priority hints; `DELAYED` ignored in 8.4 |
-| `INSERT ... SET` assignment form | Deferred | `(cols) VALUES (...)` covers it |
+| `INSERT ... SET` / `REPLACE ... SET` assignment form | Deferred | `(cols) VALUES (...)` covers it |
 | `PARTITION (...)` | Deferred | partition selection |
 | MySQL `VALUES ROW(...)` / `TABLE tbl` source | Deferred | MySQL-only source forms |
+| INSERT/REPLACE `RETURNING` | N/A (MariaDB-only) | availability split — added with the MariaDB ladder (stage 7) |
 
 ### UPDATE / DELETE
+
+Single-table UPDATE/DELETE (`set`/`setMap`, `where`, `orderBy`+`asc`/`desc`,
+`limit`, target `as`), multi-table UPDATE/DELETE via `join`/`leftJoin`/`rightJoin`/
+`crossJoin` (DELETE renders the portable `DELETE tbl.* FROM <refs>` form), and a
+leading `WITH` are **Supported**. `ORDER BY`/`LIMIT` are build-validated off for
+multi-table statements. `UPDATE ... RETURNING` is dropped for both engines (only
+MariaDB 13+); `DELETE ... RETURNING` is MariaDB-only (stage 7).
+
 | Clause | Status | Reason |
 |---|---|---|
 | `LOW_PRIORITY`/`QUICK` | Excluded | priority hints |
 | `IGNORE` | Deferred | error-demotion toggle; add as a modifier later |
 | `PARTITION (...)` | Deferred | partition selection |
+| comma-separated table list (`UPDATE a,b` / `DELETE a,b FROM`) | Deferred | the `JOIN` form (incl. `CROSS JOIN`) covers it |
+| multi-target DELETE (`DELETE t1,t2 FROM …`) | Deferred | single-target `DELETE t.* FROM <refs>` is the portable form |
+| `DELETE FROM t USING <refs>` form | Deferred | the `DELETE t.* FROM <refs>` form is rendered instead |
+| `UPDATE ... RETURNING` | N/A | no engine in anchor (MariaDB 13+ only) |
+| `DELETE ... RETURNING` | N/A (MariaDB-only) | availability split — added with the MariaDB ladder (stage 7) |
 | MariaDB `FOR PORTION OF period FROM..TO` | Excluded | application-time temporal tables, separate feature |
 | MariaDB DELETE index hints (11.8.1+) | Deferred | optimizer hint |
 

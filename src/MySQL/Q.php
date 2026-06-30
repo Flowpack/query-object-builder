@@ -10,6 +10,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\BoolLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\CaseBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\CastExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\DefaultLiteral;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\DeleteBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\ExistsExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Expressions;
@@ -86,6 +87,14 @@ final class Q
     public static function update(IdentExp $tableName): UpdateBuilder
     {
         return new UpdateBuilder($tableName);
+    }
+
+    /**
+     * Start a DELETE statement on the given table.
+     */
+    public static function deleteFrom(IdentExp $tableName): DeleteBuilder
+    {
+        return new DeleteBuilder($tableName);
     }
 
     /**
