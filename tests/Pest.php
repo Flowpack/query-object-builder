@@ -2,26 +2,43 @@
 
 declare(strict_types=1);
 
-use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\QueryBuilder;
-use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SqlWriter;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilder as MySQLQueryBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter as MySQLSqlWriter;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\QueryBuilder as PostgreSQLQueryBuilder;
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\SqlWriter as PostgreSQLSqlWriter;
 use PHPUnit\Framework\Assert;
 
 // Expect the query under test to render to the given SQL — ignoring insignificant
-// whitespace — and to bind exactly the given positional arguments.
+// whitespace — and to bind exactly the given positional arguments. Works for any
+// dialect: the matching QueryBuilder is chosen from the writer's type.
 expect()->extend('toRenderSql', function (string $expectedSql, ?array $args = null): void {
-    [$sql, $boundArgs] = QueryBuilder::build(asSqlWriter($this->value))->toSql();
+    [$sql, $boundArgs] = renderQuery($this->value);
 
     Assert::assertSame(normalizeSql($expectedSql), normalizeSql($sql));
     Assert::assertSame($args ?? [], $boundArgs);
 });
 
 /**
- * Narrow the (statically untyped) expectation value to a SqlWriter.
+ * Build the query under test through the QueryBuilder matching its dialect.
+ *
+ * @return array{0: string, 1: array<int, mixed>}
  */
-function asSqlWriter(mixed $value): SqlWriter
+function renderQuery(mixed $value): array
 {
-    if (!$value instanceof SqlWriter) {
-        throw new InvalidArgumentException('toRenderSql() expects a ' . SqlWriter::class . ' value.');
+    if ($value instanceof MySQLSqlWriter) {
+        return MySQLQueryBuilder::build($value)->toSql();
+    }
+
+    return PostgreSQLQueryBuilder::build(asPostgreSQLSqlWriter($value))->toSql();
+}
+
+/**
+ * Narrow the (statically untyped) expectation value to a PostgreSQL SqlWriter.
+ */
+function asPostgreSQLSqlWriter(mixed $value): PostgreSQLSqlWriter
+{
+    if (!$value instanceof PostgreSQLSqlWriter) {
+        throw new InvalidArgumentException('toRenderSql() expects a ' . PostgreSQLSqlWriter::class . ' or ' . MySQLSqlWriter::class . ' value.');
     }
 
     return $value;

@@ -1,0 +1,32 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
+
+/**
+ * A function-call expression, e.g. `CONCAT(a, b)`.
+ */
+final class FuncExp extends ExpBase
+{
+    /**
+     * @param list<Exp> $args
+     */
+    public function __construct(
+        private readonly string $name,
+        private readonly array $args,
+    ) {
+    }
+
+    public function writeSql(SqlBuilder $sb): void
+    {
+        $sb->writeString($this->name . '(');
+        foreach ($this->args as $i => $arg) {
+            if ($i > 0) {
+                $sb->writeString(',');
+            }
+            $arg->writeSql($sb);
+        }
+        $sb->writeString(')');
+    }
+}
