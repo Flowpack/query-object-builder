@@ -7,8 +7,6 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 /**
  * A single entry of a WITH clause: `name [(columns)] AS (query)`.
  *
- * MySQL/MariaDB have no `[NOT] MATERIALIZED` or `SEARCH` clause.
- *
  * @internal
  */
 final class WithQueryItem

@@ -28,18 +28,16 @@ describe('MySQL expressions', function () {
         expect(Q::n('a')->eq(Q::arg(1)))->toRenderSql('a = ?', [1]);
     });
 
-    it('renders operators that become functions in MySQL', function () {
-        expect(Q::n('a')->concat(Q::string('x')))->toRenderSql("CONCAT(a, 'x')");
-        expect(Q::n('a')->pow(Q::int(2)))->toRenderSql('POW(a, 2)');
-        expect(Q::n('a')->cast('UNSIGNED'))->toRenderSql('CAST(a AS UNSIGNED)');
-        expect(Q::n('a')->cast('DECIMAL(10,2)'))->toRenderSql('CAST(a AS DECIMAL(10,2))');
-        expect(Q::n('a')->jsonContains(Q::arg('1')))->toRenderSql('JSON_CONTAINS(a, ?)', ['1']);
+    it('builds functions and CAST through the facade', function () {
+        expect(Q::func('CONCAT', Q::n('a'), Q::string('x')))->toRenderSql("CONCAT(a, 'x')");
+        expect(Q::func('POW', Q::n('a'), Q::int(2)))->toRenderSql('POW(a, 2)');
+        expect(Q::cast(Q::n('a'), 'UNSIGNED'))->toRenderSql('CAST(a AS UNSIGNED)');
+        expect(Q::cast(Q::n('a'), 'DECIMAL(10,2)'))->toRenderSql('CAST(a AS DECIMAL(10,2))');
+        expect(Q::func('JSON_CONTAINS', Q::n('a'), Q::arg('1')))->toRenderSql('JSON_CONTAINS(a, ?)', ['1']);
     });
 
-    it('renders null-safe equality and IS [NOT] DISTINCT FROM', function () {
+    it('renders null-safe equality', function () {
         expect(Q::n('a')->nullSafeEq(Q::arg(1)))->toRenderSql('a <=> ?', [1]);
-        expect(Q::n('a')->isNotDistinctFrom(Q::arg(1)))->toRenderSql('a <=> ?', [1]);
-        expect(Q::n('a')->isDistinctFrom(Q::arg(1)))->toRenderSql('NOT a <=> ?', [1]);
     });
 
     it('renders JSON path extraction operators', function () {

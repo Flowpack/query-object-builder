@@ -8,6 +8,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Arg;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BindExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BoolLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\CaseBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\CastExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\DefaultLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\ExistsExp;
@@ -25,6 +26,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectSelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\StringLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SubqueryExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\TypeExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\UnaryExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WithQueryItem;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WithWithBuilder;
@@ -208,6 +210,23 @@ final class Q
     public static function neg(Exp $exp): UnaryExp
     {
         return new UnaryExp($exp, 5, prefix: '-'); // unary minus binds tightly
+    }
+
+    /**
+     * A function-call expression, e.g. `Q::func('CONCAT', $a, $b)` for
+     * `CONCAT(a, b)`. Common functions also have dedicated helpers on `Q\Func`.
+     */
+    public static function func(string $name, Exp ...$args): FuncExp
+    {
+        return new FuncExp($name, array_values($args));
+    }
+
+    /**
+     * A `CAST(expr AS type)` expression (e.g. `Q::cast($x, 'UNSIGNED')`).
+     */
+    public static function cast(Exp $exp, string $type): CastExp
+    {
+        return new CastExp($exp, new TypeExp($type));
     }
 
     /**

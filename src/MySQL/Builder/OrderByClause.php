@@ -6,7 +6,6 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
  * A single ORDER BY term: an expression with an optional sort direction.
- * MySQL/MariaDB have no `NULLS FIRST/LAST`.
  *
  * @internal
  */

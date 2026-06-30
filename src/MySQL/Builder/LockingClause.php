@@ -6,7 +6,6 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
  * A row-locking clause, e.g. `FOR UPDATE`, `FOR SHARE OF a, b SKIP LOCKED`.
- * (MariaDB renders its shared lock differently; that is handled by its own builder.)
  *
  * @internal
  */

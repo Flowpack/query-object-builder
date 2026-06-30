@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * MySQL/MariaDB join types. There is no FULL OUTER JOIN.
+ * The supported join types.
  */
 enum JoinType: string
 {

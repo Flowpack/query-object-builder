@@ -58,7 +58,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
     }
 
     /**
-     * Add a `LATERAL` subquery to the FROM clause (MySQL only).
+     * Add a `LATERAL` subquery to the FROM clause.
      */
     public function fromLateral(FromLateralExp $from): FromSelectBuilder
     {

@@ -6,7 +6,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
  * A FROM-clause item: a relation (table, subquery or join) with an optional
- * alias and column aliases, optionally LATERAL (MySQL only).
+ * alias and column aliases, optionally LATERAL.
  *
  * @internal
  */

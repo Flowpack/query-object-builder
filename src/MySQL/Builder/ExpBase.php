@@ -6,12 +6,13 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
  * Base class for expressions, providing the chainable operator methods with
- * `$this` as their left-hand side.
+ * `$this` as their left-hand side — the infix and postfix operators of the SQL
+ * dialect (comparison, arithmetic, `LIKE`, `REGEXP`, `IN`, `IS NULL`, the JSON
+ * path operators, ...).
  *
- * Several operations that PostgreSQL spells as operators are functions in
- * MySQL/MariaDB: concatenation (`CONCAT`), power (`POW`), cast (`CAST`),
- * JSON containment (`JSON_CONTAINS`). `||` would mean logical OR and `^`
- * bitwise XOR here, so they are not used.
+ * Functions such as `CONCAT`, `POW`, `CAST` or `JSON_CONTAINS` read as function
+ * calls in SQL, so they are constructed through the facade ({@see Q}) rather than
+ * chained here.
  */
 abstract class ExpBase implements Exp
 {
@@ -54,33 +55,14 @@ abstract class ExpBase implements Exp
     }
 
     /**
-     * Null-safe equality (`a <=> b`); the MySQL/MariaDB equivalent of the SQL
-     * standard `IS NOT DISTINCT FROM`.
+     * Null-safe equality (`a <=> b`): like `=`, but `NULL <=> NULL` is true.
      */
     public function nullSafeEq(Exp $rgt): OpExp
     {
         return $this->op('<=>', $rgt);
     }
 
-    public function isNotDistinctFrom(Exp $rgt): Exp
-    {
-        return $this->op('<=>', $rgt);
-    }
-
-    public function isDistinctFrom(Exp $rgt): Exp
-    {
-        return new UnaryExp($this->op('<=>', $rgt), Precedence::of('NOT'), prefix: 'NOT');
-    }
-
-    /**
-     * Cast to the given type (`CAST(expr AS type)`). There is no `::` operator.
-     */
-    public function cast(string $type): CastExp
-    {
-        return new CastExp($this, new TypeExp($type));
-    }
-
-    // Math operators
+    // Arithmetic operators
 
     public function plus(Exp $rgt): OpExp
     {
@@ -107,28 +89,11 @@ abstract class ExpBase implements Exp
         return $this->op('%', $rgt);
     }
 
-    /**
-     * Power. Rendered as `POW(a, b)` — `^` is bitwise XOR in MySQL/MariaDB.
-     */
-    public function pow(Exp $rgt): FuncExp
-    {
-        return new FuncExp('POW', [$this, $rgt]);
-    }
-
-    /**
-     * String concatenation. Rendered as `CONCAT(a, b)` — `||` is logical OR
-     * under the default sql_mode. Note `CONCAT` returns NULL if any argument is NULL.
-     */
-    public function concat(Exp $rgt): FuncExp
-    {
-        return new FuncExp('CONCAT', [$this, $rgt]);
-    }
-
-    // JSON
+    // JSON path operators
 
     /**
      * Extract a JSON value at the given path (`a -> '$.path'`). The right-hand
-     * side is a JSON path string literal, not a key/index expression.
+     * side is a JSON path string literal (e.g. `'$.name'`, `'$[0]'`).
      */
     public function jsonExtract(Exp $rgt): OpExp
     {
@@ -141,14 +106,6 @@ abstract class ExpBase implements Exp
     public function jsonExtractText(Exp $rgt): OpExp
     {
         return $this->op('->>', $rgt);
-    }
-
-    /**
-     * JSON containment (`JSON_CONTAINS(a, candidate)`).
-     */
-    public function jsonContains(Exp $candidate): FuncExp
-    {
-        return new FuncExp('JSON_CONTAINS', [$this, $candidate]);
     }
 
     // Pattern matching
@@ -165,7 +122,7 @@ abstract class ExpBase implements Exp
 
     /**
      * Regular-expression match (`a REGEXP b`). Case sensitivity follows the
-     * operand collation (case-insensitive by default).
+     * operand collation.
      */
     public function regexp(Exp $rgt): Exp
     {

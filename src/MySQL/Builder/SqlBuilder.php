@@ -62,10 +62,10 @@ final class SqlBuilder
     }
 
     /**
-     * Create a placeholder for a named argument. Unlike PostgreSQL's numbered
-     * placeholders, MySQL `?` is positional and cannot be reused, so every
-     * occurrence of the same name gets its own placeholder and arg slot; all of a
-     * name's slots are filled with the same value by {@see QueryBuilder::withNamedArgs()}.
+     * Create a placeholder for a named argument. Positional `?` placeholders are
+     * not reusable, so every occurrence of the same name gets its own placeholder
+     * and arg slot; all of a name's slots are filled with the same value by
+     * {@see QueryBuilder::withNamedArgs()}.
      */
     public function bindPlaceholder(string $name): string
     {

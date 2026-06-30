@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * A `CAST(expr AS type)` expression. MySQL/MariaDB have no `::` cast operator;
- * the type vocabulary is the restricted CAST target set (see {@see TypeExp}).
+ * A `CAST(expr AS type)` expression; the type vocabulary is the restricted CAST
+ * target set (see {@see TypeExp}).
  */
 final class CastExp extends ExpBase
 {
