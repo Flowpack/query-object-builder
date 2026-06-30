@@ -57,4 +57,12 @@ final class WithBuilder
     {
         return (new SelectBuilder(withQueries: $this->withQueries))->select(...$exps);
     }
+
+    /**
+     * Start an UPDATE statement using the WITH clause's common table expressions.
+     */
+    public function update(IdentExp $tableName): UpdateBuilder
+    {
+        return new UpdateBuilder($tableName, $this->withQueries);
+    }
 }

@@ -30,6 +30,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\StringLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SubqueryExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\TypeExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\UpdateBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\UnaryExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WithQueryItem;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WithWithBuilder;
@@ -77,6 +78,14 @@ final class Q
     public static function replaceInto(IdentExp $tableName): ReplaceBuilder
     {
         return new ReplaceBuilder($tableName);
+    }
+
+    /**
+     * Start an UPDATE statement on the given table.
+     */
+    public static function update(IdentExp $tableName): UpdateBuilder
+    {
+        return new UpdateBuilder($tableName);
     }
 
     /**
