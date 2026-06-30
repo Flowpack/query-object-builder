@@ -506,6 +506,16 @@ MariaDB 13+); `DELETE ... RETURNING` is MariaDB-only (stage 7).
 | `ILIKE`, `SIMILAR TO`, `::`, `\|\|`, `^`(pow), `@>`/`<@`, `#>`/`#>>`, `ARRAY` | N/A (PG-only) | dropped or mapped to functions — see §6 |
 
 ### Functions
+
+The curated `Q\Func` default set (§7) is **Supported**: the aggregates
+(`count`/`sum`/`avg`/`min`/`max`/`groupConcat`/`jsonArrayAgg`/`jsonObjectAgg`/
+`bitAnd`/`bitOr`/`bitXor`/`stddevPop`/`stddevSamp`/`varPop`/`varSamp`, each usable
+with `OVER`), the string/regexp/numeric/date-time/JSON/misc scalar families, the
+window functions (stage 4), and the special-shape builders (`GROUP_CONCAT`,
+`EXTRACT`, `INTERVAL`, `TRIM`, `CAST`/`CONVERT`). On `Q`: `coalesce`/`nullif`/
+`greatest`/`least`/`cast`/`convert`/`interval`; on `Q\Func`: `if`/`ifnull`.
+Anything omitted stays reachable via `Q::func(name, ...)`.
+
 | Category / function | Status | Reason |
 |---|---|---|
 | Spatial / GIS (`ST_*`, `MBR*`) | Excluded | large specialized surface; via `Q::func` |
