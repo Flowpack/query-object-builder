@@ -1,8 +1,8 @@
 # Query Object Builder
 
 A fluent, immutable SQL query builder for PHP 8.4+. The public API is a
-per-dialect facade (currently PostgreSQL); the query model and rendering live in
-a `Builder` sub-namespace.
+per-dialect facade (PostgreSQL and MySQL; MariaDB planned); the query model and
+rendering live in a per-dialect `Builder` sub-namespace.
 
 The design adapts the Go package `github.com/networkteam/qrb`. We port its
 patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
@@ -18,6 +18,9 @@ patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
   internal value objects.
 - `tests/` — Pest tests, the `tests/Pest.php` bootstrap, and small `readonly`
   option fixtures.
+
+Each supported dialect has its own top-level namespace (`src/PostgreSQL/`,
+`src/MySQL/`, …) mirroring this layout; the paths above show the PostgreSQL one.
 
 ## Conventions
 
@@ -77,10 +80,31 @@ or at the very end. The cost on PHP hot paths is call overhead, not
 concatenation, so fewer `writeString()` calls is the win.
 `SelectBuilder::writeSelectParts()` is the reference.
 
+### Dialect-native design
+
+Each dialect's facade and builders model *that dialect's own* SQL; a dialect is
+never built as a diff against another.
+
+- **Natural look.** The fluent API mirrors how the SQL reads. What the dialect
+  spells as an **operator** (comparisons, arithmetic, `LIKE`, `IS NULL`, plus
+  dialect-specific ones like PG `::`/`||` or MySQL `<=>`/`->`) is a chainable
+  method on the expression base; what reads as a **function** (`CONCAT`, `POW`,
+  `CAST`, `JSON_CONTAINS`, …) is constructed through the facade (`Q::func` /
+  `Q::cast` / `Q\Func`), not an operator-style chained method that merely emits a
+  function. Don't copy another dialect's expression surface — model the operator
+  set the dialect actually has.
+- **No dialect is the baseline.** When carrying a pattern across dialects, keep
+  the structure (immutability, type-state, `derive()`, `writeSql`) but re-derive
+  the API and SQL from the target dialect's grammar — drop what it lacks, add what
+  it has.
+
 ### Comments
 
 - No references to the Go port; no "what PHP can't do that Go can" explanations;
   no TODO / "not yet supported" lists.
+- No cross-dialect framing: describe what the code does in *this* dialect, never
+  relative to another ("PostgreSQL has X", "no FULL JOIN here", "unlike PG") —
+  same spirit as the no-Go rule above.
 - Facade and fluent-API methods: short, user-oriented docs — especially gotchas
   ("Multiple calls are joined with AND", "the JSON selection is always the first
   select element").

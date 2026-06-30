@@ -65,22 +65,14 @@ src/MariaDB/
                       #   reusing the primitives + abstract bases from src/MySQL/Builder
 ```
 
-### Dialect-native design (principle)
+### Dialect-native design
 
-Each dialect builder is first-class and models *its own* SQL — it is **not** a
-diff against another dialect. Two consequences enforced throughout:
-
-- **Natural look:** the builder mirrors how the SQL reads. Genuine operators
-  (`=`, `<=>`, `+`, `LIKE`, `REGEXP`, `->`, `IS NULL`, ...) are chainable methods
-  on the expression base; things that read as **function calls** (`CONCAT`,
-  `POW`, `CAST`, `JSON_CONTAINS`, ...) are constructed via the facade
-  (`Q::func` / `Q::cast` / `Q\Func`), never as operator-style chained methods that
-  merely emit a function. The MySQL `ExpBase` therefore carries only the dialect's
-  actual operators — it is not a copy of another dialect's expression surface.
-- **Self-standing comments:** comments describe what the code does in this
-  dialect; they never frame it relative to another dialect ("PostgreSQL has X",
-  "no FULL JOIN here", "unlike PG"). A standing rule, analogous to the no-Go rule
-  in AGENTS.md — verified continuously, with a final sweep in stage 8.
+The canonical rule lives in **AGENTS.md** ("Dialect-native design" + the
+no-cross-dialect-framing comment rule): each dialect models its own SQL —
+operators are chainable expression methods, functions are built via the facade
+(`Q::func` / `Q::cast` / `Q\Func`), and comments never frame one dialect against
+another. Consequence here: the MySQL `ExpBase` carries only MySQL's actual
+operators, and a final comment sweep is part of stage 8.
 
 ### Variant modelling — decided: per-variant subclasses (compile-time safe)
 
