@@ -5,6 +5,54 @@
       "last_modified": "2026-06-16T10:57:20Z",
       "resolved": "github:NixOS/nixpkgs/3e41b24abd260e8f71dbe2f5737d24122f972158?lastModified=1781607440&narHash=sha256-rxO%2Buc%2FKFbSJp%2BpgyXRuAX6QlG9hJdnt0BXpEQRXY%2BU%3D"
     },
+    "php84Extensions.xdebug@latest": {
+      "last_modified": "2026-06-27T07:37:20Z",
+      "resolved": "github:NixOS/nixpkgs/3d46470bb3030020f7e1361f33514854f5bfa86d#php84Extensions.xdebug",
+      "source": "devbox-search",
+      "version": "3.5.3",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/gxx3xmg8pf0w65kqgl0csdb04sd7m0pk-php-xdebug-3.5.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/gxx3xmg8pf0w65kqgl0csdb04sd7m0pk-php-xdebug-3.5.3"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/f3nllmrpxv9nqy076cy4yjkpkfwdgr37-php-xdebug-3.5.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/f3nllmrpxv9nqy076cy4yjkpkfwdgr37-php-xdebug-3.5.3"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/4mhr08izcz21qrzhai8vhmdvppm1v5p3-php-xdebug-3.5.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/4mhr08izcz21qrzhai8vhmdvppm1v5p3-php-xdebug-3.5.3"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/qrdc75zsflb8rhd84kfkiwkmc7dm569x-php-xdebug-3.5.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/qrdc75zsflb8rhd84kfkiwkmc7dm569x-php-xdebug-3.5.3"
+        }
+      }
+    },
     "php@8.4": {
       "last_modified": "2026-06-08T15:01:26Z",
       "plugin_version": "0.0.3",

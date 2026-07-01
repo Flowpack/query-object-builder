@@ -1,12 +1,14 @@
 {
   "name": "flowpack/query-object-builder",
-  "description": "A fluent, immutable, fully-typed SQL query builder for PHP (PostgreSQL, with more dialects planned).",
+  "description": "A fluent, immutable, fully-typed SQL query builder for PHP (PostgreSQL, MySQL and MariaDB).",
   "type": "library",
   "keywords": [
     "sql",
     "query-builder",
     "postgresql",
     "postgres",
+    "mysql",
+    "mariadb",
     "database",
     "immutable",
     "json"

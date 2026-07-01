@@ -60,6 +60,42 @@ describe('DeleteBuilder', function () {
         });
     });
 
+    it('aliases the target table', function () {
+        $q = Q::deleteFrom(Q::n('films'))->as('f')->where(Q::n('f.kind')->eq(Q::string('Musical')));
+
+        expect($q)->toRenderSql("DELETE FROM films AS f WHERE f.kind = 'Musical'", null);
+    });
+
+    it('aliases a USING item and its columns', function () {
+        $q = Q::deleteFrom(Q::n('films'))
+            ->using(Q::select(Q::n('id'), Q::n('name'))->from(Q::n('producers')))->as('p')->columnAliases('pid', 'pname')
+            ->where(Q::n('films.producer_id')->eq(Q::n('p.pid')));
+
+        expect($q)->toRenderSql(
+            'DELETE FROM films USING (SELECT id,name FROM producers) AS p (pid,pname) WHERE films.producer_id = p.pid',
+            null,
+        );
+    });
+
+    it('lists multiple USING items', function () {
+        $q = Q::deleteFrom(Q::n('films'))
+            ->using(Q::n('producers'))
+            ->using(Q::n('studios'))
+            ->where(Q::n('films.producer_id')->eq(Q::n('producers.id')));
+
+        expect($q)->toRenderSql(
+            'DELETE FROM films USING producers,studios WHERE films.producer_id = producers.id',
+            null,
+        );
+    });
+
+    it('returns an aliased column', function () {
+        $q = Q::deleteFrom(Q::n('tasks'))->where(Q::n('status')->eq(Q::string('DONE')))
+            ->returning(Q::n('id'))->as('task_id');
+
+        expect($q)->toRenderSql("DELETE FROM tasks WHERE status = 'DONE' RETURNING id AS task_id", null);
+    });
+
     it('renders with', function () {
         $listens = Q::n('listens');
 

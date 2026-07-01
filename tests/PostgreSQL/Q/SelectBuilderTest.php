@@ -610,6 +610,13 @@ describe('SelectBuilder', function () {
             expect($q2)->toRenderSql('SELECT 1 FROM ONLY foo,bar', null);
         });
 
+        it('names columns without a table alias', function () {
+            // Column aliases with no table alias emit a bare `AS (...)`.
+            $q = Q::select(Q::n('a'))->from(Q::n('t'))->columnAliases('a', 'b');
+
+            expect($q)->toRenderSql('SELECT a FROM t AS (a,b)', null);
+        });
+
         it('selects from a subquery', function () {
             $q = Q::select(Q::n('avg_quantity'))->from(
                 Q::select(Q\Func::avg(Q::n('quantity')))->as('avg_quantity')->from(Q::n('sales'))->groupBy(Q::n('brand')),
@@ -673,6 +680,30 @@ describe('SelectBuilder', function () {
 
             expect($q1)->toRenderSql('SELECT 1 FROM foo CROSS JOIN bar ON foo.id = bar.id', null);
             expect($q2)->toRenderSql('SELECT 1 FROM foo CROSS JOIN bar ON foo.id = bar.id CROSS JOIN LATERAL baz USING (id)', null);
+        });
+    });
+
+    describe('RightJoin', function () {
+        it('right joins immutably', function () {
+            $q = Q::select(Q::int(1))->from(Q::n('foo'))->rightJoin(Q::n('bar'))->on(Q::n('foo.id')->eq(Q::n('bar.id')));
+
+            expect($q)->toRenderSql('SELECT 1 FROM foo RIGHT JOIN bar ON foo.id = bar.id', null);
+        });
+    });
+
+    describe('FullJoin', function () {
+        it('full joins immutably', function () {
+            $q = Q::select(Q::int(1))->from(Q::n('foo'))->fullJoin(Q::n('bar'))->on(Q::n('foo.id')->eq(Q::n('bar.id')));
+
+            expect($q)->toRenderSql('SELECT 1 FROM foo FULL JOIN bar ON foo.id = bar.id', null);
+        });
+    });
+
+    describe('JoinLateral', function () {
+        it('joins lateral immutably', function () {
+            $q = Q::select(Q::int(1))->from(Q::n('foo'))->joinLateral(Q::n('bar'))->on(Q::n('foo.id')->eq(Q::n('bar.id')));
+
+            expect($q)->toRenderSql('SELECT 1 FROM foo JOIN LATERAL bar ON foo.id = bar.id', null);
         });
     });
 
@@ -765,6 +796,19 @@ describe('SelectBuilder', function () {
                 SELECT username
                 FROM accounts
                 WHERE id IN ($1, $2, $3)
+                SQL, [1, 2, 3]);
+        });
+
+        it('where not in args', function () {
+            $q = Q::select(Q::n('username'))
+                ->from(Q::n('accounts'))
+                ->where(Q::n('id')->notIn(Q::args(1, 2, 3)));
+
+            // language=PostgreSQL
+            expect($q)->toRenderSql(<<<'SQL'
+                SELECT username
+                FROM accounts
+                WHERE id NOT IN ($1, $2, $3)
                 SQL, [1, 2, 3]);
         });
 
@@ -940,6 +984,12 @@ describe('SelectBuilder', function () {
             expect($q1)->toRenderSql('SELECT foo ORDER BY foo DESC', null);
             expect($q2)->toRenderSql('SELECT foo,bar ORDER BY foo DESC,bar ASC NULLS LAST', null);
         });
+
+        it('orders nulls first', function () {
+            $q = Q::select(Q::n('foo'))->orderBy(Q::n('foo'))->nullsFirst();
+
+            expect($q)->toRenderSql('SELECT foo ORDER BY foo NULLS FIRST', null);
+        });
     });
 
     describe('With', function () {
@@ -971,6 +1021,14 @@ describe('SelectBuilder', function () {
             expect($q)->toRenderSql('WITH RECURSIVE foo AS (SELECT 1),bar AS (SELECT 2) SELECT foo', null);
         });
 
+        it('chains a second with query', function () {
+            $q = Q::with('foo')->as(Q::select(Q::int(1)))
+                ->with('bar')->as(Q::select(Q::int(2)))
+                ->select(Q::n('foo'));
+
+            expect($q)->toRenderSql('WITH foo AS (SELECT 1),bar AS (SELECT 2) SELECT foo', null);
+        });
+
         it('recursive with search depth', function () {
             $q = Q::withRecursive('search_tree')->columnNames('id', 'link', 'data')->as(
                 Q::select(Q::n('t.id'), Q::n('t.link'), Q::n('t.data'))
@@ -996,6 +1054,23 @@ describe('SelectBuilder', function () {
                 SELECT * FROM search_tree ORDER BY ordercol
                 SQL, null);
         });
+
+        it('recursive with search breadth', function () {
+            $q = Q::withRecursive('t')->columnNames('n')->as(
+                Q::select(Q::int(1))
+                    ->union()->all()
+                    ->select(Q::n('n')->plus(Q::int(1)))->from(Q::n('t'))->where(Q::n('n')->lt(Q::int(5))),
+            )->searchBreadthFirst()->by(Q::n('n'))->set('seq')
+                ->select(Q::n('*'))->from(Q::n('t'));
+
+            // language=PostgreSQL
+            expect($q)->toRenderSql(<<<'SQL'
+                WITH RECURSIVE t(n) AS (
+                    SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 5
+                ) SEARCH BREADTH FIRST BY n SET seq
+                SELECT * FROM t
+                SQL, null);
+        });
     });
 
     describe('For', function () {
@@ -1009,6 +1084,18 @@ describe('SelectBuilder', function () {
             $q = Q::select(Q::n('foo'))->from(Q::n('bar'))->forKeyShare()->of('table1', 'table2')->skipLocked();
 
             expect($q)->toRenderSql('SELECT foo FROM bar FOR KEY SHARE OF table1,table2 SKIP LOCKED', null);
+        });
+
+        it('for no key update', function () {
+            $q = Q::select(Q::n('foo'))->from(Q::n('bar'))->forNoKeyUpdate();
+
+            expect($q)->toRenderSql('SELECT foo FROM bar FOR NO KEY UPDATE', null);
+        });
+
+        it('for share nowait', function () {
+            $q = Q::select(Q::n('foo'))->from(Q::n('bar'))->forShare()->nowait();
+
+            expect($q)->toRenderSql('SELECT foo FROM bar FOR SHARE NOWAIT', null);
         });
     });
 
@@ -1029,6 +1116,14 @@ describe('SelectBuilder', function () {
                     EXCEPT ALL
                     (SELECT * FROM input_not_exists UNION ALL SELECT * FROM input_alternative_already_exists)
                 SQL, null);
+        });
+
+        it('INTERSECT', function () {
+            $q = Q::select(Q::n('*'))->from(Q::n('a'))
+                ->intersect()
+                ->query(Q::select(Q::n('*'))->from(Q::n('b')));
+
+            expect($q)->toRenderSql('SELECT * FROM a INTERSECT (SELECT * FROM b)', null);
         });
     });
 

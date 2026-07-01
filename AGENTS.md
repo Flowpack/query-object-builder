@@ -1,8 +1,18 @@
 # Query Object Builder
 
 A fluent, immutable SQL query builder for PHP 8.4+. The public API is a
-per-dialect facade (currently PostgreSQL); the query model and rendering live in
-a `Builder` sub-namespace.
+per-family facade — `PostgreSQL\Q` and `MySQL\Q` (the MySQL family covers both
+MySQL and MariaDB in one builder); the query model and rendering live in each
+family's `Builder` sub-namespace.
+
+The MySQL family is a single builder for both engines: rendering is fully
+determined by construction (never a dialect flag), engine-divergent constructs are
+built their own way, and each such construct calls `$sb->requireDialect(...)` /
+`requireAnyDialect(...)` while rendering so an opt-in
+`Q::build($q)->withValidateTarget(Target::mysql()|mariaDb())` pass reports the
+constructs the target cannot express. `Target` carries an optional version for
+version-gated features. See `docs/mysql-mariadb.md` and the
+`docs/mysql-mariadb-differences.md` catalogue.
 
 The design adapts the Go package `github.com/networkteam/qrb`. We port its
 patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
@@ -18,6 +28,10 @@ patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
   internal value objects.
 - `tests/` — Pest tests, the `tests/Pest.php` bootstrap, and small `readonly`
   option fixtures.
+
+Each family has its own top-level namespace (`src/PostgreSQL/`, `src/MySQL/`)
+mirroring this layout; the paths above show the PostgreSQL one. The two do not
+share types — a query built with one is rendered by its own `QueryBuilder`.
 
 ## Conventions
 
@@ -56,6 +70,14 @@ immutability guarantee for build-time micro-optimization.
 The user-facing surface is the facades (`Q`, `Q\Func`), the fluent builder
 methods, the expression objects they return, and `QueryBuilder::toSql()`.
 
+**`Q\Func` is the *expression* function facade: every method returns an `Exp`**
+(directly, or a builder that is an `Exp`) — something usable anywhere an
+expression is valid (SELECT list, `WHERE`, `ON`, an argument, …). A construct that
+is *not* a general expression — a statement, a clause, or a FROM-only producer
+like `JSON_TABLE` (its builder is a `FromExp`, not an `Exp`) — belongs on the `Q`
+facade, next to `select`/`from`/`with` and the other constructs, **not** on
+`Q\Func`. (This is why `Q::jsonTable()` and PG's `Q::rowsFrom()` live on `Q`.)
+
 The **rendering contract is internal**: `SqlWriter` / `InnerSqlWriter`, every
 `writeSql()` method, and `SqlBuilder` are plumbing — users never implement or
 call them. Mark them, and the value-object state holders, `@internal`.
@@ -77,10 +99,64 @@ or at the very end. The cost on PHP hot paths is call overhead, not
 concatenation, so fewer `writeString()` calls is the win.
 `SelectBuilder::writeSelectParts()` is the reference.
 
+### Validation errors
+
+Errors found while rendering are collected on `SqlBuilder` (`$sb->addError(...)`)
+and thrown together as one `QueryBuilderException` by `QueryBuilder::toSql()` — a
+`writeSql()`/`innerWriteSql()` never throws directly. Which of the two `addError`
+shapes to use is decided by a single question: **is there still a well-formed
+statement to emit?**
+
+- **Advisory value validation — gate on `$sb->isValidating()`, then keep
+  rendering.** The statement *shape* is well-formed but one *value or modifier* is
+  suspect: an invalid identifier (`IdentExp`), an unknown type (`TypeExp`), an
+  empty `CASE` (`CaseExp`), `DISTINCT` on an aggregate whose grammar rejects it
+  (`AggBuilder`). Add the error but **do not `return`** — emit the text anyway, so
+  the SQL is fully determined and `Q::build($q)->withoutValidation()` is the escape
+  hatch that lets a caller who knows better ship it (the server is the final
+  judge). These are the only checks `withoutValidation()` suppresses.
+- **Mutually-exclusive builder state — always `addError` (never gated) and
+  `return`.** Two builder options cannot coexist in one statement, so there is no
+  shape to render: `LATERAL` + `ONLY` (`FromItem`), `values` + `query`
+  (`InsertBuilder` / `ReplaceBuilder`), an `ON CONFLICT` constraint name +
+  targets, `WITH ORDINALITY` + a column-definition list (`FuncBuilder`),
+  multi-table `DELETE`/`UPDATE` + a single-target `ORDER BY`/`LIMIT`. This is
+  builder-API misuse, not an invalid value, so `withoutValidation()` must not mask
+  it — it always throws.
+
+Target/dialect gating is a third, separate mechanism: `$sb->requireDialect(...)` /
+`requireAnyDialect(...)` report a construct the validated target cannot express.
+It is opt-in via `Q::build($q)->withValidateTarget(...)` and keys off the target,
+not `isValidating()`.
+
+### Dialect-native design
+
+Each dialect's facade and builders model *that dialect's own* SQL; a dialect is
+never built as a diff against another.
+
+- **Natural look.** The fluent API mirrors how the SQL reads. What the dialect
+  spells as an **operator** (comparisons, arithmetic, `LIKE`, `IS NULL`, plus
+  dialect-specific ones like PG `::`/`||` or MySQL `<=>`/`->`) is a chainable
+  method on the expression base; what reads as a **function** (`CONCAT`, `POW`,
+  `CAST`, `JSON_CONTAINS`, …) is constructed through the facade (`Q::func` /
+  `Q::cast` / `Q\Func`), not an operator-style chained method that merely emits a
+  function. Don't copy another dialect's expression surface — model the operator
+  set the dialect actually has.
+- **No dialect is the baseline.** When carrying a pattern across dialects, keep
+  the structure (immutability, type-state, `derive()`, `writeSql`) but re-derive
+  the API and SQL from the target dialect's grammar — drop what it lacks, add what
+  it has.
+
 ### Comments
 
 - No references to the Go port; no "what PHP can't do that Go can" explanations;
   no TODO / "not yet supported" lists.
+- No cross-*family* framing: never describe the code relative to the other family
+  ("PostgreSQL has X", "no FULL JOIN here", "unlike PG") — same spirit as the no-Go
+  rule above. **Within** the MySQL family this does not apply to engine
+  divergences: a construct that only one engine accepts should say so plainly
+  (e.g. "the OF table list is a MySQL extension", "RETURNING is MariaDB-only"),
+  since that is exactly the `requireDialect(...)` validation contract.
 - Facade and fluent-API methods: short, user-oriented docs — especially gotchas
   ("Multiple calls are joined with AND", "the JSON selection is always the first
   select element").
@@ -128,3 +204,21 @@ vendor/bin/phpstan analyse
 
 Both must pass for any change. (PHPStan config — `level: max`, paths, and the
 Pest extension — lives in `phpstan.neon`.)
+
+### Coverage
+
+`XDEBUG_MODE=coverage vendor/bin/pest --coverage` (Xdebug is the driver; add
+`--coverage-clover=<file>` for a per-line report). The suite covers ~98%; aim to
+keep every builder class and public method exercised. Two testable patterns worth
+knowing: advisory value checks (invalid `IdentExp`/`TypeExp`, empty `CaseExp`,
+`DISTINCT` on an aggregate that rejects it) throw when built **and** still render
+under `Q::build($q)->withoutValidation()` — assert both; mutually-exclusive builder
+state (`values`+`query`, `ON CONFLICT` constraint+targets) always throws, even
+without validation.
+
+A handful of lines are **intentionally uncovered — don't chase them**: the private
+constructors of the static facades (`Q`, `Q\Func`, `Literals`, `Precedence`,
+`Keywords`), the `writeSql()` one-line delegators on the statement builders (they
+are `InnerSqlWriter`s, so `QueryBuilder::toSql()` only ever calls `innerWriteSql()`),
+and value-object guards with no fluent path to reach them (e.g. a `FromItem` that is
+both `LATERAL` and `ONLY`).

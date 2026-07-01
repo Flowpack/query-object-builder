@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Flowpack\QueryObjectBuilder\PostgreSQL\Builder\QueryBuilderException;
 use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
 
 describe('InsertBuilder', function () {
@@ -128,6 +129,18 @@ describe('InsertBuilder', function () {
 
             expect($q)->toRenderSql(
                 "INSERT INTO distributors (did, dname) VALUES (DEFAULT, 'XYZ Widgets') RETURNING did, dname",
+                null,
+            );
+        });
+
+        it('renders example 8 - returning an aliased column', function () {
+            $q = Q::insertInto(Q::n('distributors'))
+                ->columnNames('did', 'dname')
+                ->values(Q::default(), Q::string('XYZ Widgets'))
+                ->returning(Q::n('did'))->as('id');
+
+            expect($q)->toRenderSql(
+                "INSERT INTO distributors (did, dname) VALUES (DEFAULT, 'XYZ Widgets') RETURNING did AS id",
                 null,
             );
         });
@@ -290,6 +303,34 @@ describe('InsertBuilder', function () {
             VALUES ('UA502', '1971-07-13', 105, 'Comedy', '82 minutes', 'Bananas'),
                    ('T_601', '1962-12-10', 106, 'Drama', '227 minutes', 'Lawrence of Arabia')
             SQL,
+            null,
+        );
+    });
+
+    it('rejects setting both values and a query', function () {
+        $q = Q::insertInto(Q::n('t'))->columnNames('a')->values(Q::int(1))->query(Q::select(Q::int(2)));
+
+        expect(static fn () => Q::build($q)->toSql())
+            ->toThrow(QueryBuilderException::class, 'insert: cannot set both values and query');
+    });
+
+    it('rejects setting both an ON CONFLICT constraint name and targets', function () {
+        $q = Q::insertInto(Q::n('t'))->columnNames('a')->values(Q::int(1))
+            ->onConflict(Q::n('id'))->onConstraint('t_pkey')->doNothing();
+
+        expect(static fn () => Q::build($q)->toSql())
+            ->toThrow(QueryBuilderException::class, 'insert: cannot set both conflict constraint name and targets');
+    });
+
+    it('upserts on multiple conflict targets updating multiple columns', function () {
+        $q = Q::insertInto(Q::n('t'))->columnNames('a', 'b')
+            ->values(Q::int(1), Q::int(2))
+            ->onConflict(Q::n('a'), Q::n('b'))->doUpdate()
+            ->set('a', Q::n('EXCLUDED.a'))
+            ->set('b', Q::n('EXCLUDED.b'));
+
+        expect($q)->toRenderSql(
+            'INSERT INTO t (a, b) VALUES (1, 2) ON CONFLICT (a,b) DO UPDATE SET a = EXCLUDED.a,b = EXCLUDED.b',
             null,
         );
     });

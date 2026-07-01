@@ -95,6 +95,31 @@ describe('UpdateBuilder', function () {
         );
     });
 
+    it('returns an aliased column', function () {
+        $q = Q::update(Q::n('t'))->set('a', Q::int(1))->returning(Q::n('a'))->as('new_a');
+
+        expect($q)->toRenderSql('UPDATE t SET a = 1 RETURNING a AS new_a', null);
+    });
+
+    it('updates from a subquery with column aliases', function () {
+        $q = Q::update(Q::n('t'))
+            ->set('a', Q::n('s.x'))
+            ->from(Q::select(Q::n('x'))->from(Q::n('src')))->as('s')->columnAliases('x')
+            ->where(Q::n('t.id')->eq(Q::n('s.x')));
+
+        expect($q)->toRenderSql('UPDATE t SET a = s.x FROM (SELECT x FROM src) AS s (x) WHERE t.id = s.x', null);
+    });
+
+    it('updates from multiple tables', function () {
+        $q = Q::update(Q::n('t'))
+            ->set('a', Q::n('x.v'))
+            ->from(Q::n('x'))
+            ->from(Q::n('y'))
+            ->where(Q::n('t.id')->eq(Q::n('x.id')));
+
+        expect($q)->toRenderSql('UPDATE t SET a = x.v FROM x,y WHERE t.id = x.id', null);
+    });
+
     it('renders set map', function () {
         $q = Q::update(Q::n('films'))
             ->setMap([
