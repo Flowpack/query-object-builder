@@ -38,7 +38,7 @@ final class ForSelectBuilder extends SelectBuilder
         assert($lc !== null);
 
         return $this->derive(self::class, lockingClause: new LockingClause(
-            $lc->lockStrength,
+            $lc->clause,
             $ofTables ?? $lc->ofTables,
             $waitPolicy ?? $lc->waitPolicy,
         ));

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * A row-locking clause, e.g. `FOR UPDATE`, `FOR SHARE OF a, b SKIP LOCKED`.
+ * A row-locking clause, e.g. `FOR UPDATE`, `FOR SHARE OF a, b SKIP LOCKED`, or
+ * `LOCK IN SHARE MODE`. The lead keyword is dialect-chosen and stored verbatim.
  *
  * @internal
  */
@@ -15,7 +16,7 @@ final class LockingClause
      * @param list<string> $ofTables
      */
     public function __construct(
-        public readonly string $lockStrength,
+        public readonly string $clause,
         public readonly array $ofTables = [],
         public readonly string $waitPolicy = '',
     ) {
@@ -23,7 +24,7 @@ final class LockingClause
 
     public function writeSql(SqlBuilder $sb): void
     {
-        $s = 'FOR ' . $this->lockStrength;
+        $s = $this->clause;
         if ($this->ofTables !== []) {
             $s .= ' OF ' . implode(',', $this->ofTables);
         }
