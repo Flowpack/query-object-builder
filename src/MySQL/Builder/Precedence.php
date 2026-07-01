@@ -16,19 +16,28 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  */
 final class Precedence
 {
+    /** The precedence of the unary prefixes `-` (negation) and `~` (bitwise NOT). */
+    public const UNARY = 12;
+
     /** @var array<string, int> */
     private const MAP = [
         // JSON path operators bind tightest among the operators we render.
-        '->' => 6,
-        '->>' => 6,
-        '*' => 4,
-        '/' => 4,
-        '%' => 4,
-        'DIV' => 4,
-        'MOD' => 4,
-        '+' => 3,
-        '-' => 3,
-        // comparison row (default 0): = <=> < > <= >= <> IS LIKE REGEXP IN ...
+        '->' => 13,
+        '->>' => 13,
+        // (unary - and ~ sit at UNARY = 12, between the JSON operators and ^)
+        '^' => 11,
+        '*' => 10,
+        '/' => 10,
+        '%' => 10,
+        'DIV' => 10,
+        'MOD' => 10,
+        '+' => 9,
+        '-' => 9,
+        '<<' => 8,
+        '>>' => 8,
+        '&' => 7,
+        '|' => 6,
+        // comparison row (default 0): = <=> < > <= >= <> IS LIKE REGEXP IN MEMBER OF ...
         'BETWEEN' => -1,
         'NOT' => -2,
         'AND' => -3,

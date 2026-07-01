@@ -45,6 +45,24 @@ describe('MySQL expressions', function () {
         expect(Q::n('doc')->jsonExtractText(Q::string('$.name')))->toRenderSql("doc ->> '$.name'");
     });
 
+    it('renders bitwise operators', function () {
+        expect(Q::n('flags')->bitAnd(Q::int(4)))->toRenderSql('flags & 4');
+        expect(Q::n('flags')->bitOr(Q::int(1)))->toRenderSql('flags | 1');
+        expect(Q::n('a')->bitXor(Q::n('b')))->toRenderSql('a ^ b');
+        expect(Q::n('x')->shiftLeft(Q::int(2)))->toRenderSql('x << 2');
+        expect(Q::n('x')->shiftRight(Q::int(2)))->toRenderSql('x >> 2');
+        expect(Q::bitNot(Q::n('flags')))->toRenderSql('~ flags');
+    });
+
+    it('parenthesizes bitwise operators by precedence', function () {
+        // & binds looser than +, so a + 1 needs no parentheses under &
+        expect(Q::n('a')->plus(Q::int(1))->bitAnd(Q::int(4)))->toRenderSql('a + 1 & 4');
+        // | binds looser than *, so forcing the OR first parenthesizes it
+        expect(Q::n('a')->bitOr(Q::n('b'))->mult(Q::int(2)))->toRenderSql('(a | b) * 2');
+        // ^ binds tighter than *, so no parentheses are needed
+        expect(Q::n('a')->bitXor(Q::n('b'))->mult(Q::int(2)))->toRenderSql('a ^ b * 2');
+    });
+
     it('renders IN with an argument list', function () {
         expect(Q::n('a')->in(Q::args(1, 2, 3)))->toRenderSql('a IN (?,?,?)', [1, 2, 3]);
         expect(Q::n('a')->notIn(Q::exps(Q::int(1), Q::int(2))))->toRenderSql('a NOT IN (1,2)');

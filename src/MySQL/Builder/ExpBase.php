@@ -89,6 +89,49 @@ abstract class ExpBase implements Exp
         return $this->op('%', $rgt);
     }
 
+    // Bitwise operators — the infix operator form. (The like-named aggregates
+    // `BIT_AND` / `BIT_OR` / `BIT_XOR` are built via {@see Q\Func}.)
+
+    /**
+     * Bitwise AND (`a & b`).
+     */
+    public function bitAnd(Exp $rgt): OpExp
+    {
+        return $this->op('&', $rgt);
+    }
+
+    /**
+     * Bitwise OR (`a | b`).
+     */
+    public function bitOr(Exp $rgt): OpExp
+    {
+        return $this->op('|', $rgt);
+    }
+
+    /**
+     * Bitwise XOR (`a ^ b`).
+     */
+    public function bitXor(Exp $rgt): OpExp
+    {
+        return $this->op('^', $rgt);
+    }
+
+    /**
+     * Left bit shift (`a << b`).
+     */
+    public function shiftLeft(Exp $rgt): OpExp
+    {
+        return $this->op('<<', $rgt);
+    }
+
+    /**
+     * Right bit shift (`a >> b`).
+     */
+    public function shiftRight(Exp $rgt): OpExp
+    {
+        return $this->op('>>', $rgt);
+    }
+
     // JSON path operators
 
     /**

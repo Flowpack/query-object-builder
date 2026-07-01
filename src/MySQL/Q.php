@@ -257,7 +257,16 @@ final class Q
      */
     public static function neg(Exp $exp): UnaryExp
     {
-        return new UnaryExp($exp, 5, prefix: '-'); // unary minus binds tightly
+        return new UnaryExp($exp, Precedence::UNARY, prefix: '-');
+    }
+
+    /**
+     * Bitwise NOT (`~ ...`). (The like-named aggregate does not exist; the bitwise
+     * infix operators are chained on the expression, e.g. `->bitAnd()`.)
+     */
+    public static function bitNot(Exp $exp): UnaryExp
+    {
+        return new UnaryExp($exp, Precedence::UNARY, prefix: '~');
     }
 
     // Facade-built functions and casts

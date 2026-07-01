@@ -70,6 +70,14 @@ immutability guarantee for build-time micro-optimization.
 The user-facing surface is the facades (`Q`, `Q\Func`), the fluent builder
 methods, the expression objects they return, and `QueryBuilder::toSql()`.
 
+**`Q\Func` is the *expression* function facade: every method returns an `Exp`**
+(directly, or a builder that is an `Exp`) — something usable anywhere an
+expression is valid (SELECT list, `WHERE`, `ON`, an argument, …). A construct that
+is *not* a general expression — a statement, a clause, or a FROM-only producer
+like `JSON_TABLE` (its builder is a `FromExp`, not an `Exp`) — belongs on the `Q`
+facade, next to `select`/`from`/`with` and the other constructs, **not** on
+`Q\Func`. (This is why `Q::jsonTable()` and PG's `Q::rowsFrom()` live on `Q`.)
+
 The **rendering contract is internal**: `SqlWriter` / `InnerSqlWriter`, every
 `writeSql()` method, and `SqlBuilder` are plumbing — users never implement or
 call them. Mark them, and the value-object state holders, `@internal`.
