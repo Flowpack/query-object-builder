@@ -11,6 +11,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\ExtractExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\GroupConcatBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Keyword;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\OrderedSetAggBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Requirement;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\TrimExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WindowFuncBuilder;
@@ -109,6 +110,24 @@ final class Func
     public static function median(Exp $expr): AggBuilder
     {
         return self::gatedAgg(Dialect::MariaDb, 'MEDIAN', $expr);
+    }
+
+    /**
+     * `PERCENTILE_CONT(fraction)` — a continuous percentile. Continue with
+     * {@see OrderedSetAggBuilder::withinGroup()} / {@see OrderedSetAggBuilder::orderBy()}.
+     */
+    public static function percentileCont(Exp $fraction): OrderedSetAggBuilder
+    {
+        return new OrderedSetAggBuilder('PERCENTILE_CONT', [$fraction], Requirement::mariaDb());
+    }
+
+    /**
+     * `PERCENTILE_DISC(fraction)` — a discrete percentile. Continue with
+     * {@see OrderedSetAggBuilder::withinGroup()} / {@see OrderedSetAggBuilder::orderBy()}.
+     */
+    public static function percentileDisc(Exp $fraction): OrderedSetAggBuilder
+    {
+        return new OrderedSetAggBuilder('PERCENTILE_DISC', [$fraction], Requirement::mariaDb());
     }
 
     /** `TO_CHAR(expr)` or `TO_CHAR(expr, format)`. */

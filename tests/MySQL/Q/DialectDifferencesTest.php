@@ -198,6 +198,30 @@ describe('B4 distribution aggregates (MariaDB only)', function () {
         expect($q)->toRenderSql('MEDIAN(salary) OVER (PARTITION BY dept)', null, Target::mariaDb());
         expect($q)->toFailValidationFor(Target::mysql(), 'MEDIAN requires MariaDB');
     });
+
+    it('renders PERCENTILE_CONT with WITHIN GROUP over a partition', function () {
+        $q = Q\Func::percentileCont(Q::float(0.5))->withinGroup()->orderBy(Q::n('salary'))
+            ->over()->partitionBy(Q::n('dept'));
+
+        expect($q)->toRenderSql(
+            'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) OVER (PARTITION BY dept)',
+            null,
+            Target::mariaDb(),
+        );
+        expect($q)->toFailValidationFor(Target::mysql(), 'PERCENTILE_CONT requires MariaDB');
+    });
+
+    it('renders PERCENTILE_DISC with a descending WITHIN GROUP order', function () {
+        $q = Q\Func::percentileDisc(Q::float(0.9))->withinGroup()->orderBy(Q::n('salary'))->desc()
+            ->over()->partitionBy(Q::n('dept'));
+
+        expect($q)->toRenderSql(
+            'PERCENTILE_DISC(0.9) WITHIN GROUP (ORDER BY salary DESC) OVER (PARTITION BY dept)',
+            null,
+            Target::mariaDb(),
+        );
+        expect($q)->toFailValidationFor(Target::mysql(), 'PERCENTILE_DISC requires MariaDB');
+    });
 });
 
 describe('C dialect-only functions', function () {
