@@ -40,6 +40,28 @@ describe('MySQL expressions', function () {
         expect(Q::n('a')->nullSafeEq(Q::arg(1)))->toRenderSql('a <=> ?', [1]);
     });
 
+    it('renders comparison operators', function () {
+        expect(Q::n('a')->eq(Q::int(1)))->toRenderSql('a = 1');
+        expect(Q::n('a')->neq(Q::int(1)))->toRenderSql('a <> 1');
+        expect(Q::n('a')->lt(Q::int(1)))->toRenderSql('a < 1');
+        expect(Q::n('a')->lte(Q::int(1)))->toRenderSql('a <= 1');
+        expect(Q::n('a')->gt(Q::int(1)))->toRenderSql('a > 1');
+        expect(Q::n('a')->gte(Q::int(1)))->toRenderSql('a >= 1');
+    });
+
+    it('renders arithmetic operators', function () {
+        expect(Q::n('a')->plus(Q::int(1)))->toRenderSql('a + 1');
+        expect(Q::n('a')->minus(Q::int(1)))->toRenderSql('a - 1');
+        expect(Q::n('a')->mult(Q::int(2)))->toRenderSql('a * 2');
+        expect(Q::n('a')->divide(Q::int(2)))->toRenderSql('a / 2');
+        expect(Q::n('a')->mod(Q::int(2)))->toRenderSql('a % 2');
+    });
+
+    it('renders unary negation, keeping precedence', function () {
+        expect(Q::neg(Q::n('a')))->toRenderSql('- a');
+        expect(Q::neg(Q::n('a'))->plus(Q::int(1)))->toRenderSql('- a + 1');
+    });
+
     it('renders JSON path extraction operators', function () {
         expect(Q::n('doc')->jsonExtract(Q::string('$.name')))->toRenderSql("doc -> '$.name'");
         expect(Q::n('doc')->jsonExtractText(Q::string('$.name')))->toRenderSql("doc ->> '$.name'");
@@ -74,15 +96,36 @@ describe('MySQL expressions', function () {
             ->toRenderSql("? MEMBER OF (doc -> '$.ids')", [1]);
     });
 
-    it('renders REGEXP and LIKE', function () {
+    it('renders REGEXP and LIKE, negated and not', function () {
         expect(Q::n('a')->like(Q::string('%x%')))->toRenderSql("a LIKE '%x%'");
+        expect(Q::n('a')->notLike(Q::string('%x%')))->toRenderSql("a NOT LIKE '%x%'");
         expect(Q::n('a')->regexp(Q::string('^x')))->toRenderSql("a REGEXP '^x'");
+        expect(Q::n('a')->notRegexp(Q::string('^x')))->toRenderSql("a NOT REGEXP '^x'");
     });
 
     it('combines conditions with AND / OR / NOT', function () {
         expect(Q::and(Q::n('a')->eq(Q::int(1)), Q::n('b')->eq(Q::int(2))))
             ->toRenderSql('a = 1 AND b = 2');
+        expect(Q::or(Q::n('a')->eq(Q::int(1)), Q::n('b')->eq(Q::int(2))))
+            ->toRenderSql('a = 1 OR b = 2');
         expect(Q::not(Q::n('a')))->toRenderSql('NOT a');
         expect(Q::coalesce(Q::n('a'), Q::int(0)))->toRenderSql('COALESCE(a, 0)');
+    });
+
+    it('parenthesizes a nested junction by precedence', function () {
+        // A junction nested inside another is wrapped in parentheses.
+        expect(Q::and(Q::or(Q::n('a'), Q::n('b')), Q::n('c')))
+            ->toRenderSql('(a OR b) AND c');
+        // NOT binds tighter than OR, so its operand junction is parenthesized.
+        expect(Q::not(Q::or(Q::n('a'), Q::n('b'))))
+            ->toRenderSql('NOT (a OR b)');
+    });
+
+    it('renders ANY / ALL subquery comparisons', function () {
+        expect(
+            Q::n('id')->eq(Q::any(Q::select(Q::n('user_id'))->from(Q::n('orders'))))
+        )->toRenderSql('id = ANY (SELECT user_id FROM orders)');
+
+        expect(Q::n('x')->gt(Q::all(Q::n('vals'))))->toRenderSql('x > ALL (vals)');
     });
 });

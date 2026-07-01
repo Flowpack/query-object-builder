@@ -99,6 +99,36 @@ or at the very end. The cost on PHP hot paths is call overhead, not
 concatenation, so fewer `writeString()` calls is the win.
 `SelectBuilder::writeSelectParts()` is the reference.
 
+### Validation errors
+
+Errors found while rendering are collected on `SqlBuilder` (`$sb->addError(...)`)
+and thrown together as one `QueryBuilderException` by `QueryBuilder::toSql()` — a
+`writeSql()`/`innerWriteSql()` never throws directly. Which of the two `addError`
+shapes to use is decided by a single question: **is there still a well-formed
+statement to emit?**
+
+- **Advisory value validation — gate on `$sb->isValidating()`, then keep
+  rendering.** The statement *shape* is well-formed but one *value or modifier* is
+  suspect: an invalid identifier (`IdentExp`), an unknown type (`TypeExp`), an
+  empty `CASE` (`CaseExp`), `DISTINCT` on an aggregate whose grammar rejects it
+  (`AggBuilder`). Add the error but **do not `return`** — emit the text anyway, so
+  the SQL is fully determined and `Q::build($q)->withoutValidation()` is the escape
+  hatch that lets a caller who knows better ship it (the server is the final
+  judge). These are the only checks `withoutValidation()` suppresses.
+- **Mutually-exclusive builder state — always `addError` (never gated) and
+  `return`.** Two builder options cannot coexist in one statement, so there is no
+  shape to render: `LATERAL` + `ONLY` (`FromItem`), `values` + `query`
+  (`InsertBuilder` / `ReplaceBuilder`), an `ON CONFLICT` constraint name +
+  targets, `WITH ORDINALITY` + a column-definition list (`FuncBuilder`),
+  multi-table `DELETE`/`UPDATE` + a single-target `ORDER BY`/`LIMIT`. This is
+  builder-API misuse, not an invalid value, so `withoutValidation()` must not mask
+  it — it always throws.
+
+Target/dialect gating is a third, separate mechanism: `$sb->requireDialect(...)` /
+`requireAnyDialect(...)` report a construct the validated target cannot express.
+It is opt-in via `Q::build($q)->withValidateTarget(...)` and keys off the target,
+not `isValidating()`.
+
 ### Dialect-native design
 
 Each dialect's facade and builders model *that dialect's own* SQL; a dialect is
