@@ -9,10 +9,17 @@ exhaustive per-area findings live next to this file's source material (the
 **Version anchors:** MySQL **8.4 (LTS)**, MariaDB **11.x GA** (11.8 LTS).
 Every feature gated below the anchor is treated as *not available*.
 
-> Status: architecture **decided** (per-variant subclasses; `src/MySQL` +
-> `src/MariaDB`). Implementation in progress — foundation, expression layer and
-> SELECT have landed for MySQL. The keep/drop/replace/add tables, function set and
-> version gates are dialect-fact.
+> Status: **implemented** for both engines (per-variant subclasses; `src/MySQL` +
+> `src/MariaDB`). All staged areas (§9) have landed and are green on
+> `vendor/bin/pest` + `vendor/bin/phpstan analyse` (level max): foundation,
+> expression layer, SELECT, window functions, DML, the curated function facade, and
+> the MariaDB variant. Usage docs live in `mysql-mariadb.md`; the coverage ledger
+> (§12) records every deferred/excluded production. The compile-time-safe variant
+> split is realised via shared abstract base builders (`AbstractSelectBuilder`,
+> `Abstract{Insert,Replace,Delete}Builder`) plus shared subbuilder/facade traits,
+> with per-dialect concrete ladders. One deliberate deviation: the expression layer
+> is single-sourced (see §6 / §12 — the JSON `->`/`->>` operators stay on the shared
+> base as MySQL-native; MariaDB uses the function form).
 
 ---
 
