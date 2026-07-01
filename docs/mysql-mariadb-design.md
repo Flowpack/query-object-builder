@@ -503,6 +503,7 @@ MariaDB 13+); `DELETE ... RETURNING` is MariaDB-only (stage 7).
 |---|---|---|
 | bitwise `&` `\|` `^`(XOR) `<<` `>>` `~` | Deferred | not in the PG surface; add if wanted |
 | case-sensitive regex (`~`/`!~` equivalents) | Deferred | engine-divergent (`REGEXP_LIKE(...,'c')` vs `REGEXP BINARY`); only the ci-default `REGEXP` ships now |
+| JSON `->`/`->>` operators on MariaDB expressions | MySQL-native (shared base) | MariaDB lacks these operators (MDEV-13594); they live on the shared `ExpBase` as MySQL syntax — MariaDB code should use `Q\Func::jsonExtract`/`jsonUnquote`. A full expression-layer fork to remove two methods from MariaDB is deliberately deferred as disproportionate. |
 | `ILIKE`, `SIMILAR TO`, `::`, `\|\|`, `^`(pow), `@>`/`<@`, `#>`/`#>>`, `ARRAY` | N/A (PG-only) | dropped or mapped to functions — see §6 |
 
 ### Functions
@@ -525,4 +526,5 @@ Anything omitted stays reachable via `Q::func(name, ...)`.
 | `JSON_TABLE` | Deferred | FROM-clause table function (FROM machinery, not `Q\Func`) |
 | `MEMBER OF` operator | Deferred | JSON membership; add to the expression layer if wanted |
 | MySQL-only `REGEXP_LIKE`/`GROUPING`/`ANY_VALUE`/`JSON_SCHEMA*`/`JSON_STORAGE*`/`JSON_PRETTY`/`RANDOM_BYTES` | Supported (MySQL facade only) | gated; absent on MariaDB |
-| MariaDB-only `JSON_QUERY`/`JSON_DETAILED`/`MEDIAN`/`PERCENTILE_*`/Oracle-compat | Supported (MariaDB facade only) | gated; absent on MySQL |
+| MariaDB-only `JSON_QUERY`/`JSON_DETAILED`/`JSON_EXISTS`/`MEDIAN`/Oracle-compat (`TO_CHAR`/`ADD_MONTHS`/`MONTHS_BETWEEN`/`CHR`/`OCT`) | Supported (MariaDB facade only) | gated; absent on MySQL |
+| MariaDB `PERCENTILE_CONT`/`PERCENTILE_DISC` | Deferred | ordered-set aggregates with `WITHIN GROUP (ORDER BY …)` — a distinct builder shape; via `Q::func` until added |
