@@ -1,8 +1,18 @@
 # Query Object Builder
 
 A fluent, immutable SQL query builder for PHP 8.4+. The public API is a
-per-dialect facade (PostgreSQL and MySQL; MariaDB planned); the query model and
-rendering live in a per-dialect `Builder` sub-namespace.
+per-family facade — `PostgreSQL\Q` and `MySQL\Q` (the MySQL family covers both
+MySQL and MariaDB in one builder); the query model and rendering live in each
+family's `Builder` sub-namespace.
+
+The MySQL family is a single builder for both engines: rendering is fully
+determined by construction (never a dialect flag), engine-divergent constructs are
+built their own way, and each such construct calls `$sb->requireDialect(...)` /
+`requireAnyDialect(...)` while rendering so an opt-in
+`Q::build($q)->withValidateTarget(Target::mysql()|mariaDb())` pass reports the
+constructs the target cannot express. `Target` carries an optional version for
+version-gated features. See `docs/mysql-mariadb.md` and the
+`docs/mysql-mariadb-differences.md` catalogue.
 
 The design adapts the Go package `github.com/networkteam/qrb`. We port its
 patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
@@ -19,8 +29,9 @@ patterns, but **never mention Go in the PHP code or comments** (see *Comments*).
 - `tests/` — Pest tests, the `tests/Pest.php` bootstrap, and small `readonly`
   option fixtures.
 
-Each supported dialect has its own top-level namespace (`src/PostgreSQL/`,
-`src/MySQL/`, …) mirroring this layout; the paths above show the PostgreSQL one.
+Each family has its own top-level namespace (`src/PostgreSQL/`, `src/MySQL/`)
+mirroring this layout; the paths above show the PostgreSQL one. The two do not
+share types — a query built with one is rendered by its own `QueryBuilder`.
 
 ## Conventions
 
@@ -102,9 +113,12 @@ never built as a diff against another.
 
 - No references to the Go port; no "what PHP can't do that Go can" explanations;
   no TODO / "not yet supported" lists.
-- No cross-dialect framing: describe what the code does in *this* dialect, never
-  relative to another ("PostgreSQL has X", "no FULL JOIN here", "unlike PG") —
-  same spirit as the no-Go rule above.
+- No cross-*family* framing: never describe the code relative to the other family
+  ("PostgreSQL has X", "no FULL JOIN here", "unlike PG") — same spirit as the no-Go
+  rule above. **Within** the MySQL family this does not apply to engine
+  divergences: a construct that only one engine accepts should say so plainly
+  (e.g. "the OF table list is a MySQL extension", "RETURNING is MariaDB-only"),
+  since that is exactly the `requireDialect(...)` validation contract.
 - Facade and fluent-API methods: short, user-oriented docs — especially gotchas
   ("Multiple calls are joined with AND", "the JSON selection is always the first
   select element").

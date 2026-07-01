@@ -9,17 +9,31 @@ exhaustive per-area findings live next to this file's source material (the
 **Version anchors:** MySQL **8.4 (LTS)**, MariaDB **11.x GA** (11.8 LTS).
 Every feature gated below the anchor is treated as *not available*.
 
-> Status: **implemented** for both engines (per-variant subclasses; `src/MySQL` +
-> `src/MariaDB`). All staged areas (§9) have landed and are green on
+> Status: **implemented** as a single MySQL-family builder in `src/MySQL` (there is
+> no `src/MariaDB`). All staged areas (§9) have landed and are green on
 > `vendor/bin/pest` + `vendor/bin/phpstan analyse` (level max): foundation,
 > expression layer, SELECT, window functions, DML, the curated function facade, and
-> the MariaDB variant. Usage docs live in `mysql-mariadb.md`; the coverage ledger
-> (§12) records every deferred/excluded production. The compile-time-safe variant
-> split is realised via shared abstract base builders (`AbstractSelectBuilder`,
-> `Abstract{Insert,Replace,Delete}Builder`) plus shared subbuilder/facade traits,
-> with per-dialect concrete ladders. One deliberate deviation: the expression layer
-> is single-sourced (see §6 / §12 — the JSON `->`/`->>` operators stay on the shared
-> base as MySQL-native; MariaDB uses the function form).
+> the engine divergences. Usage docs live in `mysql-mariadb.md`; the structural
+> engine differences are catalogued in `mysql-mariadb-differences.md`; the coverage
+> ledger (§12) records every deferred/excluded production.
+>
+> **Architecture note — supersedes the per-variant framing throughout the body
+> (§2, §4, §8, §9, §11).** Those sections are the original blueprint and still read
+> as two facades (`MySQL\Q` + `MariaDB\Q`), abstract base builders, per-class
+> `writeSql` render-branches and `Q::inserted()`; none of that is how it landed.
+> The two engines were collapsed into one builder rather than the originally-planned
+> per-variant subclasses. Rendering is fully determined by construction (never a dialect flag),
+> so engine-divergent SQL comes from *different construction* — `forShare()` vs
+> `lockInShareMode()`, `->as('new')` + `Q::n('new.col')` vs `Q::values('col')`,
+> the `->jsonExtract()` operator vs `Q\Func::jsonExtract()`. Each divergent
+> construct calls `$sb->requireDialect(...)` / `requireAnyDialect(...)` while
+> rendering; validation is opt-in via
+> `Q::build($q)->withValidateTarget(Target::mysql()|mariaDb($version))`, which
+> reports (never silently changes) the constructs the target cannot express.
+> `Requirement` carries an optional `[gteVersion, ltVersion)` window for
+> version-gated features (e.g. leading `WITH` on UPDATE/DELETE = MySQL, or MariaDB
+> 12.3+). The §8 split matrix still lists *which* engine each construct belongs to;
+> only its "handling" column (render-branch / per-class writeSql) is superseded.
 
 ---
 

@@ -59,11 +59,13 @@ list to bind. See [Executing queries](#executing-queries) for how to run it.
 ## Dialects
 
 This README covers the PostgreSQL builder (`Flowpack\QueryObjectBuilder\PostgreSQL\Q`).
-The package also ships **MySQL 8.4** and **MariaDB 11.x** facades
-(`MySQL\Q` and `MariaDB\Q`) with the same fluent, immutable, type-safe design,
-each modelling its own dialect (backtick identifiers, `?` placeholders, native
-operators and functions). See **[MySQL & MariaDB](docs/mysql-mariadb.md)** for
-usage, the per-engine differences, and the coverage/limitations.
+The package also ships a **MySQL-family** facade (`MySQL\Q`) covering **MySQL 8.4**
+and **MariaDB 11.x** in one builder, with the same fluent, immutable, type-safe
+design (backtick identifiers, `?` placeholders, native operators and functions).
+Where the two engines diverge you build the engine's own form, and an opt-in
+`->withValidateTarget(Target::mysql()|mariaDb())` pass reports any construct the
+target cannot express. See **[MySQL & MariaDB](docs/mysql-mariadb.md)** for usage,
+the engine differences, and the coverage/limitations.
 
 ## Core concepts
 
