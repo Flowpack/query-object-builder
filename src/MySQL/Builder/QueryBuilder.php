@@ -16,12 +16,24 @@ final class QueryBuilder
         private readonly SqlWriter $writer,
         private readonly array $namedArgs = [],
         private readonly bool $validating = true,
+        private readonly ?Target $validationTarget = null,
     ) {
     }
 
     public static function build(SqlWriter $writer): self
     {
         return new self($writer);
+    }
+
+    /**
+     * Validate that the query only uses features available on the given engine
+     * (and version). Rendering is unaffected — it is fully determined by how the
+     * query was constructed; this opts into raising a {@see QueryBuilderException}
+     * for constructs the target does not support.
+     */
+    public function withValidateTarget(Target $target): self
+    {
+        return new self($this->writer, $this->namedArgs, $this->validating, $target);
     }
 
     /**
@@ -32,7 +44,7 @@ final class QueryBuilder
      */
     public function toSql(): array
     {
-        $sb = new SqlBuilder($this->validating);
+        $sb = new SqlBuilder($this->validating, $this->validationTarget);
 
         // A top-level query is written without the parentheses it would get as a subquery.
         if ($this->writer instanceof InnerSqlWriter) {
@@ -70,7 +82,7 @@ final class QueryBuilder
      */
     public function withNamedArgs(array $args): self
     {
-        return new self($this->writer, $args, $this->validating);
+        return new self($this->writer, $args, $this->validating, $this->validationTarget);
     }
 
     /**
@@ -78,6 +90,6 @@ final class QueryBuilder
      */
     public function withoutValidation(): self
     {
-        return new self($this->writer, $this->namedArgs, false);
+        return new self($this->writer, $this->namedArgs, false, $this->validationTarget);
     }
 }

@@ -40,9 +40,35 @@ final class SqlBuilder
     /** @var list<\Throwable> */
     private array $errors = [];
 
+    /**
+     * The target to validate constructs against, or null to skip target validation.
+     * Rendering never depends on it — the SQL is fully determined by the query.
+     */
     public function __construct(
         private readonly bool $validating = true,
+        private readonly ?Target $validationTarget = null,
     ) {
+    }
+
+    /**
+     * Record that the construct being written requires the given dialect (and,
+     * optionally, a minimum version). When a validation target is set and does not
+     * satisfy the requirement, an error is added; otherwise this is a no-op.
+     */
+    public function requireDialect(Dialect $required, string $feature, ?string $minVersion = null): void
+    {
+        if ($this->validationTarget === null || $this->validationTarget->satisfies($required, $minVersion)) {
+            return;
+        }
+
+        $versionNote = $minVersion !== null ? ' ' . $minVersion . '+' : '';
+        $this->addError(new QueryBuilderException(sprintf(
+            '%s requires %s%s, but the query is validated against %s',
+            $feature,
+            $required->label(),
+            $versionNote,
+            $this->validationTarget->dialect->label(),
+        )));
     }
 
     public function writeString(string $s): void
