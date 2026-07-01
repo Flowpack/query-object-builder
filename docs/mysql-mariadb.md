@@ -47,14 +47,16 @@ or any layer that speaks MySQL/MariaDB placeholders.
   misc scalars, the window functions (`rowNumber`, `rank`, `lag`, `lead`,
   `firstValue`, …), the special shapes (`GROUP_CONCAT`, `EXTRACT`, `TRIM`), and
   the engine-specific functions (`jsonPretty`, `regexpLike`, … for MySQL;
-  `jsonDetailed`, `median`, … for MariaDB). It is named `Func` (not `Fn`) because
-  `fn` is a reserved keyword in PHP.
+  `jsonDetailed`, `median`, `percentileCont`/`percentileDisc`, … for MariaDB). It
+  is named `Func` (not `Fn`) because `fn` is a reserved keyword in PHP.
 
 Operators are chainable on the expression objects that `Q::n()`, literals and
 functions return: `->eq()`, `->neq()`, `->lt()`, `->like()`, `->regexp()`,
 `->nullSafeEq()` (`<=>`), `->in()`, `->isNull()`, `->plus()`, `->jsonExtract()`
-(`->`, MySQL), … Things that read as function calls — `CONCAT`, `POW`, `CAST`,
-`JSON_CONTAINS` — are built through the facade (`Q::func` / `Q::cast` / `Q\Func`),
+(`->`, MySQL), the bitwise operators (`->bitAnd()`, `->bitOr()`, `->bitXor()`,
+`->shiftLeft()`, `->shiftRight()`, `Q::bitNot()`) and `->memberOf()`
+(`x MEMBER OF (arr)`), … Things that read as function calls — `CONCAT`, `POW`,
+`CAST`, `JSON_CONTAINS` — are built through the facade (`Q::func` / `Q::cast` / `Q\Func`),
 not as chained operators.
 
 ## Validating against a target
@@ -233,9 +235,9 @@ deliberately out of scope. Anything omitted remains reachable through the raw
   short form, MariaDB `OFFSET..FETCH` and recursive-CTE `CYCLE`, the
   `INSERT/REPLACE ... SET` assignment form, MySQL `VALUES ROW()` / `TABLE`
   sources, the comma-separated multi-table list (the `JOIN` form covers it),
-  multi-target `DELETE t1,t2 FROM …`, `UPDATE/DELETE IGNORE`, `MEMBER OF`,
-  `JSON_TABLE`, and MariaDB `PERCENTILE_CONT`/`PERCENTILE_DISC` (the `WITHIN
-  GROUP` ordered-set shape).
+  multi-target `DELETE t1,t2 FROM …`, `UPDATE/DELETE IGNORE`, and the heavier
+  `JSON_TABLE` column forms (`NESTED PATH`, `DEFAULT…ON EMPTY|ERROR`, `EXISTS
+  PATH`).
 - **Excluded** (not query shape): `INTO OUTFILE/DUMPFILE/@var`, priority /
   optimizer / result hints (`LOW_PRIORITY`, `SQL_CALC_FOUND_ROWS`, …),
   `PROCEDURE`, `ROWS EXAMINED` / `WAIT n`, `FOR PORTION OF`, spatial / GIS,

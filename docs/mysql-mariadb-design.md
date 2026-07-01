@@ -522,7 +522,7 @@ MariaDB 13+); `DELETE ... RETURNING` is MariaDB-only (stage 7).
 ### Expressions
 | Item | Status | Reason |
 |---|---|---|
-| bitwise `&` `\|` `^`(XOR) `<<` `>>` `~` | Deferred | not in the PG surface; add if wanted |
+| bitwise `&` `\|` `^`(XOR) `<<` `>>` `~` | Supported | operators on `ExpBase` (`bitAnd`/`bitOr`/`bitXor`/`shiftLeft`/`shiftRight`) + `Q::bitNot` |
 | case-sensitive regex (`~`/`!~` equivalents) | Deferred | engine-divergent (`REGEXP_LIKE(...,'c')` vs `REGEXP BINARY`); only the ci-default `REGEXP` ships now |
 | JSON `->`/`->>` operators on MariaDB expressions | MySQL-native (shared base) | MariaDB lacks these operators (MDEV-13594); they live on the shared `ExpBase` as MySQL syntax — MariaDB code should use `Q\Func::jsonExtract`/`jsonUnquote`. A full expression-layer fork to remove two methods from MariaDB is deliberately deferred as disproportionate. |
 | `ILIKE`, `SIMILAR TO`, `::`, `\|\|`, `^`(pow), `@>`/`<@`, `#>`/`#>>`, `ARRAY` | N/A (PG-only) | dropped or mapped to functions — see §6 |
@@ -544,8 +544,8 @@ Anything omitted stays reachable via `Q::func(name, ...)`.
 | Encryption / compression (`AES_*`, `MD5`/`SHA*`, `COMPRESS`) | Excluded from default | security/config-sensitive; via `Q::func` |
 | Locking / information / replication / internal funcs | Excluded | connection/server state, not query shape |
 | XML (`ExtractValue`, `UpdateXML`) | Excluded | niche |
-| `JSON_TABLE` | Deferred | FROM-clause table function (FROM machinery, not `Q\Func`) |
-| `MEMBER OF` operator | Deferred | JSON membership; add to the expression layer if wanted |
+| `JSON_TABLE` | Supported | FROM-clause table function on the `Q` facade (`Q::jsonTable(...)->column()/columnForOrdinality()`); `NESTED PATH` / `DEFAULT…ON EMPTY\|ERROR` / `EXISTS PATH` deferred |
+| `MEMBER OF` operator | Supported | `ExpBase::memberOf()` → `value MEMBER OF (json_array)` |
 | MySQL-only `REGEXP_LIKE`/`GROUPING`/`ANY_VALUE`/`JSON_SCHEMA*`/`JSON_STORAGE*`/`JSON_PRETTY`/`RANDOM_BYTES` | Supported (MySQL facade only) | gated; absent on MariaDB |
 | MariaDB-only `JSON_QUERY`/`JSON_DETAILED`/`JSON_EXISTS`/`MEDIAN`/Oracle-compat (`TO_CHAR`/`ADD_MONTHS`/`MONTHS_BETWEEN`/`CHR`/`OCT`) | Supported (MariaDB facade only) | gated; absent on MySQL |
-| MariaDB `PERCENTILE_CONT`/`PERCENTILE_DISC` | Deferred | ordered-set aggregates with `WITHIN GROUP (ORDER BY …)` — a distinct builder shape; via `Q::func` until added |
+| MariaDB `PERCENTILE_CONT`/`PERCENTILE_DISC` | Supported (MariaDB, gated) | ordered-set aggregates `Q\Func::percentileCont/Disc(frac)->withinGroup()->orderBy(...)`, usable with `over()` |
