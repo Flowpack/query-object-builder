@@ -5,24 +5,60 @@
 [![CI](https://github.com/Flowpack/query-object-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/Flowpack/query-object-builder/actions/workflows/ci.yml)
 [![License](https://img.shields.io/packagist/l/flowpack/query-object-builder.svg)](LICENSE)
 
-A fluent, immutable, fully-typed SQL query builder for PHP 8.4+ with extensive
-support for PostgreSQL-specific features.
+A fluent, immutable, fully-typed SQL query builder for PHP 8.4+.
 
 You compose a query from small, type-safe expression objects and render it to a
 parameterized SQL string with bound arguments — never by concatenating strings.
+The package ships **two dialect families**, each modelling *its own* SQL rather
+than a lowest-common-denominator subset:
+
+- **`PostgreSQL\Q`** — the PostgreSQL builder.
+- **`MySQL\Q`** — a single **MySQL-family** builder covering both **MySQL** *and*
+  **MariaDB**. Every construct is buildable regardless of engine or version; where
+  the two engines diverge you build the engine's own form, and an opt-in
+  [target-validation](#mysql--mariadb-one-builder-two-engines) pass reports any
+  construct the engine (and version) you are targeting cannot express.
+
+Both families share the same design — fluent, immutable, type-state builders and
+the `Q` / `Q\Func` facade split — so once you know one, you know the other.
+
+## Contents
+
+- [Why Query Object Builder?](#why-query-object-builder)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [The two dialect families](#the-two-dialect-families)
+- [Quick start](#quick-start)
+- [Core concepts](#core-concepts)
+- [MySQL & MariaDB: one builder, two engines](#mysql--mariadb-one-builder-two-engines)
+- [Examples](#examples)
+- [Parameters](#parameters)
+- [Validation & errors](#validation--errors)
+- [Executing queries](#executing-queries)
+- [Best practices](#best-practices)
+- [Development](#development)
+- [License](#license)
 
 ## Why Query Object Builder?
 
-- **Pure PostgreSQL focus** — no compromises for lowest-common-denominator
-  multi-database support.
-- **JSON-first design** — first-class support for `json_build_object` and
-  `json_agg` to build hierarchical data directly in the database.
-- **Complete feature set** — CTEs, window functions, arrays, grouping sets,
-  `ON CONFLICT`, `RETURNING`, set-returning functions, and more.
+- **Dialect-native, not lowest-common-denominator** — each family's facade and
+  builders model that engine's own SQL (PostgreSQL arrays and `ON CONFLICT`;
+  MySQL/MariaDB `JSON_TABLE`, `ON DUPLICATE KEY UPDATE`, backtick quoting). No
+  feature is dropped to fit a shared subset.
+- **JSON-first** — first-class support for building hierarchical data directly in
+  the database (`json_build_object` / `json_agg` on PostgreSQL, `JSON_OBJECT` /
+  `JSON_ARRAYAGG` on MySQL/MariaDB).
+- **Complete feature set** — CTEs, window functions and frames, grouping,
+  subqueries, upserts, `RETURNING`, set-returning / table functions, and more.
 - **Type-safe** — builder methods only expose what is valid in the current
   context, so invalid queries are hard to express.
 - **Immutable** — every builder method returns a new instance, so base queries
   can be shared and specialised without surprises.
+- **Runtime target validation** — the MySQL family renders both engines from one
+  builder and can *report* (never silently rewrite) any construct a specific
+  engine or version cannot express.
+- **Zero runtime dependencies** — requires only PHP 8.4+. Everything else is a
+  dev-only dependency (PHPUnit, Pest, PHPStan).
 
 ## Requirements
 
@@ -34,62 +70,92 @@ parameterized SQL string with bound arguments — never by concatenating strings
 composer require flowpack/query-object-builder
 ```
 
+## The two dialect families
+
+Pick the facade for your database; the fluent API is the same shape on both.
+
+|                     | PostgreSQL                                   | MySQL / MariaDB                                          |
+|---------------------|----------------------------------------------|---------------------------------------------------------|
+| Import              | `Flowpack\QueryObjectBuilder\PostgreSQL\Q`   | `Flowpack\QueryObjectBuilder\MySQL\Q`                   |
+| Placeholders        | numbered `$1`, `$2`, …                        | positional `?`                                          |
+| Identifier quoting  | `"col"` (when needed)                        | `` `col` `` (when needed)                               |
+| Boolean literal     | `true` / `false`                             | `TRUE` / `FALSE`                                         |
+| Function casing     | `count(*)`, `json_agg(...)`                   | `COUNT(*)`, `JSON_ARRAYAGG(...)`                         |
+| Cast                | `expr::type`                                  | `CAST(expr AS type)` / `CONVERT(...)`                    |
+| Engines             | PostgreSQL                                    | MySQL **and** MariaDB (one builder)                     |
+
+`PostgreSQL\Q` and `MySQL\Q` do **not** share types — a query built with one is
+rendered by its own `QueryBuilder`.
+
 ## Quick start
+
+**PostgreSQL:**
 
 ```php
 use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
 
-$active = true;
-
 $q = Q::select(Q::n('name'), Q::n('email'))
     ->from(Q::n('users'))
-    ->where(Q::n('active')->eq(Q::arg($active)))
+    ->where(Q::n('active')->eq(Q::arg(true)))
     ->orderBy(Q::n('name'));
 
 [$sql, $args] = Q::build($q)->toSql();
 
-echo $sql;             // SELECT name,email FROM users WHERE active = $1 ORDER BY name
-var_dump($args);       // [true]
+echo $sql;        // SELECT name,email FROM users WHERE active = $1 ORDER BY name
+var_dump($args);  // [true]
 ```
 
-`Q::build($q)->toSql()` returns a `[$sql, $args]` pair: a SQL string with
-PostgreSQL numbered placeholders (`$1`, `$2`, …) and the positional argument
-list to bind. See [Executing queries](#executing-queries) for how to run it.
+**MySQL / MariaDB:**
 
-## Dialects
+```php
+use Flowpack\QueryObjectBuilder\MySQL\Q;
 
-This README covers the PostgreSQL builder (`Flowpack\QueryObjectBuilder\PostgreSQL\Q`).
-The package also ships a **MySQL-family** facade (`MySQL\Q`) covering **MySQL 8.4**
-and **MariaDB 11.x** in one builder, with the same fluent, immutable, type-safe
-design (backtick identifiers, `?` placeholders, native operators and functions).
-Where the two engines diverge you build the engine's own form, and an opt-in
-`->withValidateTarget(Target::mysql()|mariaDb())` pass reports any construct the
-target cannot express. See **[MySQL & MariaDB](docs/mysql-mariadb.md)** for usage,
-the engine differences, and the coverage/limitations.
+$q = Q::select(Q::n('name'), Q::n('email'))
+    ->from(Q::n('users'))
+    ->where(Q::n('active')->eq(Q::arg(true)))
+    ->orderBy(Q::n('name'));
+
+[$sql, $args] = Q::build($q)->toSql();
+
+echo $sql;        // SELECT name,email FROM users WHERE active = ? ORDER BY name
+var_dump($args);  // [true]
+```
+
+`Q::build($q)->toSql()` returns a `[$sql, $args]` pair: a SQL string with the
+dialect's placeholders and the positional argument list to bind. See
+[Executing queries](#executing-queries) for how to run it.
 
 ## Core concepts
 
 ### The `Q` facade
 
 `Q` is the single entry point for building queries. It exposes the builder
-package as a small set of static factory methods so you never reference the
-underlying builder types directly:
+package as static factory methods so you never reference the underlying builder
+types directly:
 
 - **Statements**: `Q::select()`, `Q::insertInto()`, `Q::update()`,
-  `Q::deleteFrom()`, `Q::with()`, `Q::withRecursive()`
-- **Identifiers**: `Q::n('table.column')` for names/columns
+  `Q::deleteFrom()`, `Q::with()`, `Q::withRecursive()` (MySQL family adds
+  `Q::replaceInto()`).
+- **Identifiers**: `Q::n('table.column')` for names/columns.
 - **Literals**: `Q::string()`, `Q::int()`, `Q::float()`, `Q::bool()`,
-  `Q::null()`, `Q::default()`, `Q::array()`, `Q::interval()`
-- **Parameters**: `Q::arg()` (positional), `Q::bind()` (named)
-- **Composition**: `Q::and()`, `Q::or()`, `Q::not()`, `Q::exists()`,
-  `Q::case()`, `Q::coalesce()`, `Q::func()`, `Q::agg()`
+  `Q::null()`, `Q::default()` (PostgreSQL adds `Q::array()`, `Q::interval()`).
+- **Parameters**: `Q::arg()` (positional), `Q::bind()` (named).
+- **Composition**: `Q::and()`, `Q::or()`, `Q::not()`, `Q::exists()`, `Q::any()`,
+  `Q::all()`, `Q::case()`, `Q::coalesce()`, `Q::func()`.
 
 ### The `Q\Func` facade
 
-SQL functions live on the `Q\Func` facade: `Q\Func::jsonBuildObject()`,
-`Q\Func::jsonAgg()`, `Q\Func::count()`, `Q\Func::sum()`, `Q\Func::upper()`,
-`Q\Func::rowNumber()`, `Q\Func::unnest()`, and many more. It is named `Func`
-(not `Fn`) because `fn` is a reserved keyword in PHP.
+SQL functions live on `Q\Func`. On PostgreSQL:
+`Q\Func::jsonBuildObject()`, `Q\Func::jsonAgg()`, `Q\Func::count()`,
+`Q\Func::rowNumber()`, `Q\Func::unnest()`, … On MySQL/MariaDB:
+`Q\Func::jsonObject()`, `Q\Func::jsonArrayAgg()`, `Q\Func::count()`,
+`Q\Func::groupConcat()`, `Q\Func::rank()`, … It is named `Func` (not `Fn`)
+because `fn` is a reserved keyword in PHP.
+
+`Q\Func` is the *expression* facade: every method returns something usable
+anywhere an expression is valid. Constructs that are not general expressions — a
+statement, or a FROM-only producer like `JSON_TABLE` — live on `Q` instead
+(`Q::jsonTable()`, PostgreSQL's `Q::rowsFrom()`).
 
 ### Immutability
 
@@ -106,244 +172,195 @@ $recent = $base->where(Q::n('created_at')->gt(Q::string('2024-01-01')));
 
 ### Operators on expressions
 
-Expressions returned by `Q::n()`, `Q::arg()`, literals, and functions carry the
-SQL operators as fluent methods: `->eq()`, `->neq()`, `->lt()`, `->gt()`,
-`->like()`, `->ilike()`, `->in()`, `->isNull()`, `->isNotNull()`, `->plus()`,
-`->minus()`, `->mult()`, `->concat()`, `->cast()`, `->op('*', …)`, and more.
-Parentheses are added automatically based on operator precedence.
+Expressions returned by `Q::n()`, `Q::arg()`, literals and functions carry the
+SQL **operators** as fluent methods; what reads as a **function** is built
+through the facade. Each family models the operator set its dialect actually has:
+
+- **Shared**: `->eq()`, `->neq()`, `->lt()`, `->lte()`, `->gt()`, `->gte()`,
+  `->like()`, `->in()`, `->isNull()`, `->isNotNull()`, `->plus()`, `->minus()`,
+  `->mult()`, `->and()`/`->or()`, …
+- **PostgreSQL-specific**: `->ilike()`, `->cast('text')` (`::`), `->concat()`
+  (`||`), array/JSON operators.
+- **MySQL/MariaDB-specific**: `->nullSafeEq()` (`<=>`), `->regexp()`,
+  `->memberOf()` (`MEMBER OF`), `->jsonExtract()` / `->jsonExtractText()`
+  (`->` / `->>`, MySQL), the bitwise operators (`->bitAnd()`, `->bitOr()`,
+  `->shiftLeft()`, …).
+
+Parentheses are added automatically based on each dialect's operator precedence.
+
+### Building and rendering
+
+A finished query is handed to `Q::build($q)` to configure rendering, then
+`->toSql()` produces the `[$sql, $args]` pair:
+
+```php
+[$sql, $args] = Q::build($q)->toSql();                       // validate + render
+[$sql, $args] = Q::build($q)->withoutValidation()->toSql();  // skip value checks
+[$sql, $args] = Q::build($q)->withNamedArgs([...])->toSql();  // bind Q::bind() names
+```
+
+See [Validation & errors](#validation--errors) for what is checked and how to
+opt out, and the MySQL-only [target validation](#opt-in-target-validation) pass.
+
+## MySQL & MariaDB: one builder, two engines
+
+The MySQL family is a **single builder** for both MySQL and MariaDB. The two
+engines share ~95% of their grammar and *all* of their rendering conventions
+(backtick identifiers, `?` placeholders, string escaping), so one builder models
+both. This section is the design goal that makes that safe.
+
+**Nothing is gated at build time.** Every construct is buildable regardless of
+engine or version — the builder never refuses a feature because your engine is
+the wrong flavour or too old. Engine and version are inputs to the *opt-in*
+validation pass below, which *reports* (never rewrites or blocks) what a target
+cannot express. This is also why the PostgreSQL builder carries no version: it
+models a single engine, so it needs no target at all.
+
+### Rendering is determined by construction
+
+Rendering **never branches on a dialect flag**. What you build is exactly what is
+rendered — so the engine-divergent constructs are reached by *building the
+engine's own form*, not by toggling a mode:
+
+| Intent                    | MySQL                                          | MariaDB                                       |
+|---------------------------|------------------------------------------------|-----------------------------------------------|
+| Shared row lock           | `->forShare()`                                 | `->lockInShareMode()`                         |
+| Upsert proposed-row ref   | `->as('new')` + `Q::n('new.col')`              | `Q::values('col')` *(also works on MySQL)*    |
+| JSON path                 | `->jsonExtract()` / `->jsonExtractText()`      | `Q\Func::jsonExtract()` / `Q\Func::jsonUnquote()` |
+| Pretty-print JSON         | `Q\Func::jsonPretty()`                         | `Q\Func::jsonDetailed()`                      |
+| `RETURNING`               | — (not supported)                              | `->returning(...)`                            |
+| `LATERAL`                 | `->joinLateral()` / `->fromLateral()`          | — (no equivalent)                             |
+
+Building without a target renders precisely what you constructed and never fails
+on dialect grounds.
+
+### Opt-in target validation
+
+To check a query against a specific engine (and, optionally, version), opt in
+with `withValidateTarget()`. Each divergent construct reports itself while
+rendering, so you get a `QueryBuilderException` naming what the target cannot
+express:
+
+```php
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\Target;
+
+$q = Q::select(Q::n('id'))->from(Q::n('t'))->forShare();   // FOR SHARE is MySQL-only
+
+Q::build($q)->withValidateTarget(Target::mysql())->toSql();    // ok
+Q::build($q)->withValidateTarget(Target::mariaDb())->toSql();  // throws QueryBuilderException:
+// "FOR SHARE requires MySQL, but the query is validated against MariaDB"
+```
+
+`Target::mysql($version)` / `Target::mariaDb($version)` carry an optional
+version. Version-gated features are checked only when a version is supplied — a
+leading `WITH` on `UPDATE`/`DELETE` is valid on MySQL and on MariaDB 12.3+, so it
+passes against `Target::mariaDb('12.3')` but fails against `Target::mariaDb('11.4')`.
+A target with no version only checks the dialect.
+
+Worked per-engine variants for each divergent construct are in the
+[Examples](#examples) below.
 
 ## Examples
 
-> The builder emits compact, single-line SQL. The SQL shown below is formatted
-> for readability — it is otherwise exactly what each query renders.
+> **How to read these examples.** Unless a snippet is labelled for a specific
+> engine, the PHP builds **identically on both facades** — import `PostgreSQL\Q`
+> or `MySQL\Q` as `Q`. Only the rendered SQL differs by dialect (`$1` vs `?`,
+> identifier quoting, `true` vs `TRUE`, lower- vs upper-case function names).
+> Divergent constructs show a snippet per engine. The builder emits compact,
+> single-line SQL; the SQL below is formatted for readability.
+
+**Jump to:**
+
+- [Basic queries](#basic-queries) ·
+  [Joins](#joins) ·
+  [Aggregation & grouping](#aggregation--grouping) ·
+  [Window functions](#window-functions) ·
+  [JSON](#json) ·
+  [Arrays (PostgreSQL)](#arrays-postgresql) ·
+  [Subqueries](#subqueries) ·
+  [CTEs (WITH)](#ctes-with) ·
+  [INSERT & upsert](#insert--upsert) ·
+  [UPDATE](#update) ·
+  [DELETE](#delete) ·
+  [Functions & operators](#functions--operators) ·
+  [Locking](#locking)
 
 ### Basic queries
-
-#### Simple SELECT
-
-```php
-$q = Q::select(Q::n('*'))->from(Q::n('users'));
-```
-
-```sql
-SELECT * FROM users
-```
 
 #### SELECT with WHERE
 
 ```php
 $q = Q::select(Q::n('name'), Q::n('email'))
     ->from(Q::n('users'))
-    ->where(Q::n('active')->eq(Q::bool(true)));
+    ->where(Q::n('active')->eq(Q::arg(true)));
 ```
 
 ```sql
-SELECT name, email FROM users WHERE active = true
+-- PostgreSQL
+SELECT name, email FROM users WHERE active = $1   -- args: [true]
+-- MySQL / MariaDB
+SELECT name, email FROM users WHERE active = ?    -- args: [true]
 ```
 
-#### SELECT with multiple conditions
+#### Multiple conditions
 
 ```php
 $q = Q::select(Q::n('*'))
     ->from(Q::n('employees'))
     ->where(Q::and(
         Q::or(
-            Q::n('firstname')->ilike(Q::arg('John%')),
-            Q::n('lastname')->ilike(Q::arg('John%')),
+            Q::n('firstname')->like(Q::arg('John%')),
+            Q::n('lastname')->like(Q::arg('John%')),
         ),
         Q::n('active')->eq(Q::bool(true)),
     ));
 ```
 
 ```sql
+-- PostgreSQL
 SELECT * FROM employees
-WHERE (firstname ILIKE $1 OR lastname ILIKE $2) AND active = true
+WHERE (firstname LIKE $1 OR lastname LIKE $2) AND active = true
+-- MySQL / MariaDB
+SELECT * FROM employees
+WHERE (firstname LIKE ? OR lastname LIKE ?) AND active = TRUE
 ```
 
-#### SELECT DISTINCT
+> PostgreSQL also has `->ilike()` for case-insensitive matching; MySQL/MariaDB
+> use `->like()` (case-insensitivity follows the column collation) or `->regexp()`.
+
+#### DISTINCT
 
 ```php
-$q = Q::select()->distinct()
-    ->select(Q::n('department'))
-    ->from(Q::n('employees'));
+$q = Q::select(Q::n('department'))->distinct()->from(Q::n('employees'));
 ```
 
 ```sql
+-- PostgreSQL / MySQL / MariaDB
 SELECT DISTINCT department FROM employees
 ```
 
-#### SELECT with ORDER BY, LIMIT and OFFSET
+#### ORDER BY, LIMIT and OFFSET
 
 ```php
 $q = Q::select(Q::n('name'), Q::n('salary'))
     ->from(Q::n('employees'))
-    ->orderBy(Q::n('salary'))->desc()->nullsLast()
+    ->orderBy(Q::n('salary'))->desc()
     ->limit(Q::int(10))
     ->offset(Q::int(20));
 ```
 
 ```sql
-SELECT name, salary FROM employees
-ORDER BY salary DESC NULLS LAST
-LIMIT 10 OFFSET 20
+-- PostgreSQL / MySQL / MariaDB
+SELECT name, salary FROM employees ORDER BY salary DESC LIMIT 10 OFFSET 20
 ```
 
-### CRUD operations
-
-#### INSERT with VALUES
-
-```php
-$q = Q::insertInto(Q::n('users'))
-    ->columnNames('name', 'email', 'active')
-    ->values(Q::string('John Doe'), Q::string('john@example.com'), Q::bool(true));
-```
-
-```sql
-INSERT INTO users (name, email, active)
-VALUES ('John Doe', 'john@example.com', true)
-```
-
-#### INSERT multiple rows
-
-```php
-$q = Q::insertInto(Q::n('products'))
-    ->columnNames('name', 'price', 'category')
-    ->values(Q::string('Laptop'), Q::float(999.99), Q::string('Electronics'))
-    ->values(Q::string('Book'), Q::float(19.99), Q::string('Literature'));
-```
-
-```sql
-INSERT INTO products (name, price, category) VALUES
-    ('Laptop', 999.99, 'Electronics'),
-    ('Book', 19.99, 'Literature')
-```
-
-#### INSERT from a map of values
-
-```php
-$q = Q::insertInto(Q::n('films'))
-    ->setMap([
-        'code' => 'UA502',
-        'title' => 'Bananas',
-        'did' => 105,
-    ]);
-```
-
-```sql
-INSERT INTO films (code,did,title) VALUES ($1, $2, $3)
--- args: ['UA502', 105, 'Bananas']
-```
-
-#### INSERT from a SELECT
-
-```php
-$q = Q::insertInto(Q::n('archived_users'))
-    ->query(Q::select(Q::n('*'))->from(Q::n('users'))->where(Q::n('active')->eq(Q::bool(false))));
-```
-
-```sql
-INSERT INTO archived_users SELECT * FROM users WHERE active = false
-```
-
-#### INSERT with RETURNING
-
-```php
-$q = Q::insertInto(Q::n('users'))
-    ->columnNames('name', 'email')
-    ->values(Q::string('Jane Doe'), Q::string('jane@example.com'))
-    ->returning(Q::n('id'), Q::n('created_at'));
-```
-
-```sql
-INSERT INTO users (name, email) VALUES ('Jane Doe', 'jane@example.com')
-RETURNING id, created_at
-```
-
-#### UPSERT (INSERT … ON CONFLICT)
-
-```php
-$q = Q::insertInto(Q::n('distributors'))
-    ->columnNames('did', 'dname')
-    ->values(Q::int(5), Q::string('Gizmo Transglobal'))
-    ->onConflict(Q::n('did'))->doUpdate()
-    ->set('dname', Q::n('EXCLUDED.dname'));
-```
-
-```sql
-INSERT INTO distributors (did, dname) VALUES (5, 'Gizmo Transglobal')
-ON CONFLICT (did) DO UPDATE SET dname = EXCLUDED.dname
-```
-
-#### UPDATE
-
-```php
-$q = Q::update(Q::n('films'))
-    ->set('kind', Q::string('Dramatic'))
-    ->where(Q::n('kind')->eq(Q::string('Drama')));
-```
-
-```sql
-UPDATE films SET kind = 'Dramatic' WHERE kind = 'Drama'
-```
-
-#### UPDATE with FROM
-
-```php
-$q = Q::update(Q::n('employees'))->as('e')
-    ->set('department_name', Q::n('d.name'))
-    ->from(Q::n('departments'))->as('d')
-    ->where(Q::n('e.department_id')->eq(Q::n('d.id')));
-```
-
-```sql
-UPDATE employees AS e SET department_name = d.name
-FROM departments AS d
-WHERE e.department_id = d.id
-```
-
-#### DELETE
-
-```php
-$q = Q::deleteFrom(Q::n('films'))
-    ->where(Q::n('kind')->neq(Q::string('Musical')));
-```
-
-```sql
-DELETE FROM films WHERE kind <> 'Musical'
-```
-
-#### DELETE with USING
-
-```php
-$q = Q::deleteFrom(Q::n('films'))
-    ->using(Q::n('producers'))
-    ->where(Q::and(
-        Q::n('producer_id')->eq(Q::n('producers.id')),
-        Q::n('producers.name')->eq(Q::string('foo')),
-    ));
-```
-
-```sql
-DELETE FROM films USING producers
-WHERE producer_id = producers.id AND producers.name = 'foo'
-```
+> `NULLS FIRST` / `NULLS LAST` (`->nullsLast()`) is PostgreSQL-only.
 
 ### Joins
 
-#### INNER JOIN
-
-```php
-$q = Q::select(Q::n('u.name'), Q::n('p.title'))
-    ->from(Q::n('users'))->as('u')
-    ->join(Q::n('posts'))->as('p')->on(Q::n('u.id')->eq(Q::n('p.user_id')));
-```
-
-```sql
-SELECT u.name, p.title FROM users AS u
-JOIN posts AS p ON u.id = p.user_id
-```
-
-#### LEFT JOIN
+`join()`, `leftJoin()`, `rightJoin()`, `crossJoin()` are shared; alias with
+`->as()` and constrain with `->on(...)` or `->using('col')`.
 
 ```php
 $q = Q::select(Q::n('u.name'), Q::n('p.title'))
@@ -352,97 +369,82 @@ $q = Q::select(Q::n('u.name'), Q::n('p.title'))
 ```
 
 ```sql
+-- PostgreSQL / MySQL / MariaDB
 SELECT u.name, p.title FROM users AS u
 LEFT JOIN posts AS p ON u.id = p.user_id
 ```
 
-#### JOIN with USING
+#### LATERAL join
+
+Supported by PostgreSQL and MySQL — MariaDB has no `LATERAL`.
 
 ```php
-$q = Q::select(Q::n('u.name'), Q::n('p.title'))
-    ->from(Q::n('users'))->as('u')
-    ->join(Q::n('posts'))->as('p')->using('user_id');
+$q = Q::select(Q::n('*'))
+    ->from(Q::n('orders'))->as('o')
+    ->joinLateral(
+        Q::select(Q::n('*'))->from(Q::n('items'))->as('i')
+            ->where(Q::n('i.order_id')->eq(Q::n('o.id')))
+            ->limit(Q::int(3)),
+    )->as('top')->on(Q::bool(true));
 ```
 
 ```sql
-SELECT u.name, p.title FROM users AS u
-JOIN posts AS p USING (user_id)
+-- PostgreSQL
+SELECT * FROM orders AS o
+JOIN LATERAL (SELECT * FROM items AS i WHERE i.order_id = o.id LIMIT 3) AS top ON true
+-- MySQL
+SELECT * FROM orders AS o
+JOIN LATERAL (SELECT * FROM items AS i WHERE i.order_id = o.id LIMIT 3) AS top ON TRUE
 ```
+
+`fromLateral()`, `leftJoinLateral()` and `crossJoinLateral()` are also available.
+Within the MySQL family, `LATERAL` is MySQL-only — validating against
+`Target::mariaDb()` reports *"LATERAL requires MySQL"*.
 
 ### Aggregation & grouping
 
-#### GROUP BY with an aggregate
-
 ```php
-$q = Q::select(Q::n('department'))
-    ->select(Q\Func::count(Q::n('*')))->as('employee_count')
-    ->from(Q::n('employees'))
-    ->groupBy(Q::n('department'));
-```
-
-```sql
-SELECT department, count(*) AS employee_count
-FROM employees
-GROUP BY department
-```
-
-#### GROUP BY with HAVING
-
-```php
-$q = Q::select(Q::n('department'))
-    ->select(Q\Func::avg(Q::n('salary')))->as('avg_salary')
+$q = Q::select(Q::n('department'), Q\Func::count(Q::n('*')))->as('n')
     ->from(Q::n('employees'))
     ->groupBy(Q::n('department'))
-    ->having(Q\Func::avg(Q::n('salary'))->gt(Q::int(50000)));
+    ->having(Q\Func::count(Q::n('*'))->gt(Q::int(5)));
 ```
 
 ```sql
-SELECT department, avg(salary) AS avg_salary
-FROM employees
-GROUP BY department
-HAVING avg(salary) > 50000
+-- PostgreSQL
+SELECT department, count(*) AS n FROM employees
+GROUP BY department HAVING count(*) > 5
+-- MySQL / MariaDB
+SELECT department, COUNT(*) AS n FROM employees
+GROUP BY department HAVING COUNT(*) > 5
 ```
 
-#### GROUP BY ROLLUP
+#### ROLLUP
+
+The engines spell super-aggregate grouping differently:
 
 ```php
+// PostgreSQL: GROUP BY ROLLUP (...)
 $q = Q::select(Q::n('department'), Q::n('job_title'), Q\Func::sum(Q::n('salary')))
     ->from(Q::n('employees'))
-    ->groupBy()
-    ->rollup(
-        Q::exps(Q::n('department')),
-        Q::exps(Q::n('job_title')),
-    );
-```
+    ->groupBy()->rollup(Q::exps(Q::n('department')), Q::exps(Q::n('job_title')));
+// SELECT department, job_title, sum(salary) FROM employees
+// GROUP BY ROLLUP (department, job_title)
 
-```sql
-SELECT department, job_title, sum(salary)
-FROM employees
-GROUP BY ROLLUP (department, job_title)
-```
-
-#### GROUP BY GROUPING SETS
-
-```php
+// MySQL / MariaDB: GROUP BY ... WITH ROLLUP
 $q = Q::select(Q::n('department'), Q::n('job_title'), Q\Func::sum(Q::n('salary')))
     ->from(Q::n('employees'))
-    ->groupBy()
-    ->groupingSets(
-        Q::exps(Q::n('department')),
-        Q::exps(Q::n('job_title')),
-        Q::exps(),
-    );
+    ->groupBy(Q::n('department'), Q::n('job_title'))->withRollup();
+// SELECT department, job_title, SUM(salary) FROM employees
+// GROUP BY department, job_title WITH ROLLUP
 ```
 
-```sql
-SELECT department, job_title, sum(salary)
-FROM employees
-GROUP BY GROUPING SETS (department, job_title, ())
-```
+> PostgreSQL also supports `->groupingSets(...)` and `->cube(...)`.
 
 ### Window functions
 
-#### ROW_NUMBER over a partition
+Aggregate and window functions carry `->over()` (inline) or `->over('w')`
+(named), refined with `->partitionBy(...)`, `->orderBy(...)` and frame clauses.
 
 ```php
 $q = Q::select(
@@ -453,8 +455,13 @@ $q = Q::select(
 ```
 
 ```sql
+-- PostgreSQL
 SELECT name, salary,
        row_number() OVER (PARTITION BY department ORDER BY salary DESC)
+FROM employees
+-- MySQL / MariaDB
+SELECT name, salary,
+       ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC)
 FROM employees
 ```
 
@@ -470,130 +477,203 @@ $q = Q::select(
 ```
 
 ```sql
-SELECT sum(salary) OVER w, avg(salary) OVER w
+-- MySQL / MariaDB (PostgreSQL renders the same, lower-cased)
+SELECT SUM(salary) OVER w, AVG(salary) OVER w
 FROM empsalary
 WINDOW w AS (PARTITION BY depname ORDER BY salary DESC)
 ```
 
-### JSON operations
+#### Frames
+
+```php
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+// Running total: ROWS UNBOUNDED PRECEDING
+$q = Q::select(
+    Q\Func::sum(Q::n('val'))->over()
+        ->partitionBy(Q::n('subject'))->orderBy(Q::n('time'))
+        ->rows(Q::unboundedPreceding()),
+)->from(Q::n('observations'));
+// SELECT SUM(val) OVER (PARTITION BY subject ORDER BY time ROWS UNBOUNDED PRECEDING) FROM observations
+
+// Moving average: ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING
+$q = Q::select(
+    Q\Func::avg(Q::n('val'))->over()
+        ->partitionBy(Q::n('subject'))->orderBy(Q::n('time'))
+        ->rows(Q::preceding(Q::int(1)), Q::following(Q::int(1))),
+)->from(Q::n('observations'));
+// SELECT AVG(val) OVER (PARTITION BY subject ORDER BY time ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM observations
+```
+
+> MariaDB additionally offers distribution aggregates — `Q\Func::median()`,
+> `Q\Func::percentileCont()` / `percentileDisc()` with `->withinGroup()` — which
+> validate against `Target::mariaDb()` only.
+
+### JSON
+
+Both families build hierarchical data in the database, but with each engine's own
+function set.
 
 #### Build a JSON object
 
+Both families build objects from key/value properties with a `->prop()` builder,
+under each dialect's own function name:
+
 ```php
+// PostgreSQL: json_build_object()
 $q = Q::select(
     Q\Func::jsonBuildObject()
         ->prop('id', Q::n('id'))
-        ->prop('name', Q::n('name'))
-        ->prop('email', Q::n('email')),
+        ->prop('name', Q::n('name')),
 )->from(Q::n('users'));
+// SELECT json_build_object('id', id, 'name', name) FROM users
+
+// MySQL / MariaDB: JSON_OBJECT()
+$q = Q::select(
+    Q\Func::jsonObject()
+        ->prop('id', Q::n('id'))
+        ->prop('name', Q::n('name')),
+)->from(Q::n('users'));
+// SELECT JSON_OBJECT('id', id, 'name', name) FROM users
 ```
 
-```sql
-SELECT json_build_object('id', id, 'name', name, 'email', email)
-FROM users
-```
-
-#### JSON aggregation
+The builder keeps insertion order, and `->propIf($cond, 'key', $value)` /
+`->applyIf(...)` / `->unset('key')` let you shape the object incrementally:
 
 ```php
-$q = Q::select(
-    Q::n('department'),
-    Q\Func::jsonAgg(
-        Q\Func::jsonBuildObject()
-            ->prop('name', Q::n('name'))
-            ->prop('salary', Q::n('salary')),
-    )->orderBy(Q::n('name')),
-)
-    ->from(Q::n('employees'))
-    ->groupBy(Q::n('department'));
+$obj = Q\Func::jsonObject()
+    ->prop('id', Q::n('id'))
+    ->propIf($includeName, 'name', Q::n('name'));
 ```
 
-```sql
-SELECT department,
-       json_agg(json_build_object('name', name, 'salary', salary) ORDER BY name)
-FROM employees
-GROUP BY department
-```
+Property keys are string literals; for a computed key, drop to the
+`Q::func('json_build_object'|'JSON_OBJECT', ...)` escape hatch.
 
-#### `selectJson` for a JSON-first query
+#### JSON-first query (`selectJson`)
 
-When the query's primary output is a single JSON object, `Q::selectJson()`
-makes it the first selection and lets you refine it later with
-`applySelectJson()`:
+When a query's primary output is a single JSON object, `Q::selectJson($obj)`
+makes it the first select element; refine it later with `applySelectJson()` and
+name it with `->as()`. Both families support it — pass the family's own object
+builder.
 
 ```php
 $q = Q::selectJson(
-    Q\Func::jsonBuildObject()
-        ->prop('Title', Q::n('books.title'))
-        ->prop('ID', Q::n('books.book_id')),
+    // PostgreSQL: Q\Func::jsonBuildObject() — MySQL / MariaDB: Q\Func::jsonObject()
+    Q\Func::jsonObject()
+        ->prop('id', Q::n('authors.author_id'))
+        ->prop('name', Q::n('authors.name')),
 )
-    ->from(Q::n('books'))
-    ->where(Q::n('books.book_id')->eq(Q::arg(2)));
+    ->from(Q::n('authors'))
+    ->where(Q::n('authors.author_id')->eq(Q::arg(123)));
+
+// The builder is a blueprint — add to the JSON selection later:
+$q = $q->applySelectJson(fn ($obj) => $obj->prop('postCount', Q\Func::count(Q::n('posts'))));
 ```
 
 ```sql
-SELECT json_build_object('Title', books.title, 'ID', books.book_id)
-FROM books
-WHERE books.book_id = $1
+-- PostgreSQL
+SELECT json_build_object('id', authors.author_id, 'name', authors.name, 'postCount', count(posts))
+FROM authors WHERE authors.author_id = $1
+-- MySQL / MariaDB
+SELECT JSON_OBJECT('id', authors.author_id, 'name', authors.name, 'postCount', COUNT(posts))
+FROM authors WHERE authors.author_id = ?
 ```
 
-### Array operations
-
-#### Array construction
+#### Aggregate rows into a JSON array
 
 ```php
-$q = Q::select(Q::array(Q::string('a'), Q::string('b'), Q::string('c')));
+// PostgreSQL: json_agg(...)
+$q = Q::select(
+    Q::n('department'),
+    Q\Func::jsonAgg(
+        Q\Func::jsonBuildObject()->prop('name', Q::n('name'))->prop('salary', Q::n('salary')),
+    )->orderBy(Q::n('name')),
+)->from(Q::n('employees'))->groupBy(Q::n('department'));
+// SELECT department, json_agg(json_build_object('name', name, 'salary', salary) ORDER BY name)
+// FROM employees GROUP BY department
+
+// MySQL / MariaDB: JSON_ARRAYAGG(...); COALESCE with JSON_ARRAY() to avoid NULL on empty sets
+$q = Q::select(
+    Q::n('department'),
+    Q::coalesce(
+        Q\Func::jsonArrayAgg(
+            Q\Func::jsonObject()->prop('name', Q::n('name'))->prop('salary', Q::n('salary')),
+        ),
+        Q\Func::jsonArray(),
+    ),
+)->from(Q::n('employees'))->groupBy(Q::n('department'));
+// SELECT department, COALESCE(JSON_ARRAYAGG(JSON_OBJECT('name', name, 'salary', salary)), JSON_ARRAY())
+// FROM employees GROUP BY department
+```
+
+#### JSON path access — MySQL family
+
+```php
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+// MySQL: the -> and ->> operators
+$q = Q::select(Q::n('doc')->jsonExtract(Q::string('$.name')))->from(Q::n('t'));
+// SELECT doc -> '$.name' FROM t
+
+// MariaDB: the function form (also works on MySQL)
+$q = Q::select(Q\Func::jsonExtract(Q::n('doc'), Q::string('$.name')))->from(Q::n('t'));
+// SELECT JSON_EXTRACT(doc, '$.name') FROM t
+```
+
+The `->` / `->>` operators validate against `Target::mysql()` only; the
+`JSON_EXTRACT` / `JSON_UNQUOTE` function form is portable across both engines.
+
+#### JSON_TABLE — MySQL family
+
+`Q::jsonTable(doc, path)` is a FROM-clause table function; define its columns
+with `->columns(closure)`. `->column()` opens a value column and `->path()` gives
+its JSON path; `->forOrdinality()` / `->existsPath()` pick the other leaf forms,
+the miss handlers (`->defaultOnEmpty()` / `->nullOnError()` / …) attach, and
+`->nested()->path()->columns()` recurses.
+
+```php
+$q = Q::select(Q::n('jt.id'), Q::n('jt.tag'))
+    ->from(Q::n('t'))
+    ->from(
+        Q::jsonTable(Q::n('t.doc'), '$[*]')->columns(fn ($c) => $c
+            ->column('id', 'INT')->path('$.id')
+            ->column('ord')->forOrdinality()
+            ->nested()->path('$.tags[*]')->columns(fn ($tags) => $tags
+                ->column('tag', 'VARCHAR(50)')->path('$'))),
+    )->as('jt');
 ```
 
 ```sql
-SELECT ARRAY['a','b','c']
+-- MySQL / MariaDB
+SELECT jt.id, jt.tag FROM t,
+  JSON_TABLE(t.doc, '$[*]' COLUMNS (
+    id INT PATH '$.id',
+    ord FOR ORDINALITY,
+    NESTED PATH '$.tags[*]' COLUMNS (tag VARCHAR(50) PATH '$'))) AS jt
 ```
 
-#### Array functions
+### Arrays (PostgreSQL)
+
+Native arrays are a PostgreSQL feature.
 
 ```php
+use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
+
 $q = Q::select(
     Q\Func::arrayAppend(Q::array(Q::int(1), Q::int(2)), Q::int(3)),
     Q\Func::arrayLength(Q::array(Q::int(1), Q::int(2), Q::int(3)), Q::int(1)),
 );
-```
+// SELECT array_append(ARRAY[1,2], 3), array_length(ARRAY[1,2,3], 1)
 
-```sql
-SELECT array_append(ARRAY[1,2], 3), array_length(ARRAY[1,2,3], 1)
-```
-
-#### UNNEST
-
-```php
 $q = Q::select(Q::n('*'))
-    ->from(Q\Func::unnest(Q::array(Q::string('a'), Q::string('b'), Q::string('c'))))
+    ->from(Q\Func::unnest(Q::array(Q::string('a'), Q::string('b'))))
     ->as('t')->columnAliases('value');
-```
-
-```sql
-SELECT * FROM unnest(ARRAY['a','b','c']) AS t (value)
-```
-
-#### Array aggregation
-
-```php
-$q = Q::select(
-    Q::n('department'),
-    Q\Func::arrayAgg(Q::n('name'))->orderBy(Q::n('name')),
-)
-    ->from(Q::n('employees'))
-    ->groupBy(Q::n('department'));
-```
-
-```sql
-SELECT department, array_agg(name ORDER BY name)
-FROM employees
-GROUP BY department
+// SELECT * FROM unnest(ARRAY['a','b']) AS t (value)
 ```
 
 ### Subqueries
 
-#### EXISTS
+#### EXISTS and IN
 
 ```php
 $q = Q::select(Q::n('name'))
@@ -606,25 +686,9 @@ $q = Q::select(Q::n('name'))
 ```
 
 ```sql
+-- PostgreSQL / MySQL / MariaDB
 SELECT name FROM users
 WHERE EXISTS (SELECT 1 FROM posts WHERE posts.user_id = users.id)
-```
-
-#### IN with a subquery
-
-```php
-$q = Q::select(Q::n('name'))
-    ->from(Q::n('users'))
-    ->where(Q::n('id')->in(
-        Q::select(Q::n('user_id'))
-            ->from(Q::n('posts'))
-            ->where(Q::n('published')->eq(Q::bool(true))),
-    ));
-```
-
-```sql
-SELECT name FROM users
-WHERE id IN (SELECT user_id FROM posts WHERE published = true)
 ```
 
 #### IN with bound arguments
@@ -638,56 +702,33 @@ $q = Q::select(Q::n('username'))
 ```
 
 ```sql
-SELECT username FROM accounts WHERE id IN ($1, $2, $3)
--- args: [1, 2, 3]
+-- PostgreSQL
+SELECT username FROM accounts WHERE id IN ($1, $2, $3)   -- args: [1, 2, 3]
+-- MySQL / MariaDB
+SELECT username FROM accounts WHERE id IN (?, ?, ?)      -- args: [1, 2, 3]
 ```
 
-#### Correlated subquery
+#### ANY / ALL
 
 ```php
-$q = Q::select(Q::n('name'), Q::n('salary'))
-    ->from(Q::n('employees'))->as('e1')
-    ->where(Q::n('salary')->gt(
-        Q::select(Q\Func::avg(Q::n('salary')))
-            ->from(Q::n('employees'))->as('e2')
-            ->where(Q::n('e1.department')->eq(Q::n('e2.department'))),
-    ));
+$q = Q::select(Q::n('id'))->from(Q::n('users'))
+    ->where(Q::n('id')->eq(Q::any(
+        Q::select(Q::n('user_id'))->from(Q::n('orders')),
+    )));
 ```
 
 ```sql
-SELECT name, salary FROM employees AS e1
-WHERE salary > (
-    SELECT avg(salary) FROM employees AS e2
-    WHERE e1.department = e2.department
-)
+-- PostgreSQL / MySQL / MariaDB
+SELECT id FROM users WHERE id = ANY (SELECT user_id FROM orders)
 ```
 
-#### Subquery in FROM
-
-```php
-$q = Q::select(Q::n('avg_quantity'))
-    ->from(
-        Q::select(Q\Func::avg(Q::n('quantity')))->as('avg_quantity')
-            ->from(Q::n('sales'))
-            ->groupBy(Q::n('brand')),
-    )->as('t');
-```
-
-```sql
-SELECT avg_quantity FROM (
-    SELECT avg(quantity) AS avg_quantity FROM sales GROUP BY brand
-) AS t
-```
-
-### Common Table Expressions (WITH)
-
-#### Simple CTE
+### CTEs (WITH)
 
 ```php
 $q = Q::with('recent_orders')->as(
     Q::select(Q::n('*'))
         ->from(Q::n('orders'))
-        ->where(Q::n('created_at')->gt(Q::string('2023-01-01'))),
+        ->where(Q::n('created_at')->gt(Q::arg('2023-01-01'))),
 )
     ->select(Q::n('customer_name'), Q\Func::count(Q::n('*')))
     ->from(Q::n('recent_orders'))
@@ -695,85 +736,177 @@ $q = Q::with('recent_orders')->as(
 ```
 
 ```sql
+-- PostgreSQL (MySQL/MariaDB render the same, with ? and upper-cased count)
 WITH recent_orders AS (
-    SELECT * FROM orders WHERE created_at > '2023-01-01'
+    SELECT * FROM orders WHERE created_at > $1
 )
 SELECT customer_name, count(*) FROM recent_orders GROUP BY customer_name
 ```
 
-#### Recursive CTE
+`Q::withRecursive('t')->columnNames(...)->as(...)` builds recursive CTEs, and
+`->appendWith(...)` chains several. On PostgreSQL a `WITH` precedes any
+statement; on the MySQL family a leading `WITH` before `UPDATE`/`DELETE` is
+MySQL-only (and MariaDB 12.3+):
 
 ```php
-$q = Q::withRecursive('employee_recursive')
-    ->columnNames('distance', 'employee_name', 'manager_name')->as(
-        Q::select(Q::int(1), Q::n('employee_name'), Q::n('manager_name'))
-            ->from(Q::n('employee'))
-            ->where(Q::n('manager_name')->eq(Q::string('Mary')))
-            ->union()->all()
-            ->select(Q::n('er.distance')->op('+', Q::int(1)), Q::n('e.employee_name'), Q::n('e.manager_name'))
-            ->from(Q::n('employee_recursive'))->as('er')
-            ->from(Q::n('employee'))->as('e')
-            ->where(Q::n('er.employee_name')->eq(Q::n('e.manager_name'))),
-    )
-    ->select(Q::n('distance'), Q::n('employee_name'))->from(Q::n('employee_recursive'));
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+$q = Q::with('stale')->as(Q::select(Q::n('id'))->from(Q::n('sessions'))->where(Q::n('expired')->eq(Q::int(1))))
+    ->deleteFrom(Q::n('users'))->where(Q::n('id')->in(Q::select(Q::n('id'))->from(Q::n('stale'))));
+// WITH stale AS (SELECT id FROM sessions WHERE expired = 1) DELETE FROM users WHERE id IN (SELECT id FROM stale)
+// ok against Target::mysql() and Target::mariaDb('12.3'); reported against Target::mariaDb('11.4')
+```
+
+### INSERT & upsert
+
+The basic INSERT surface is shared: `->columnNames(...)`, `->values(...)`
+(repeat for multiple rows), `->setMap([...])`, and `->query(...)` to insert from
+a SELECT.
+
+```php
+$q = Q::insertInto(Q::n('users'))
+    ->columnNames('name', 'email')
+    ->values(Q::arg('Jane Doe'), Q::arg('jane@example.com'));
 ```
 
 ```sql
-WITH RECURSIVE employee_recursive(distance, employee_name, manager_name) AS (
-    SELECT 1, employee_name, manager_name
-    FROM employee
-    WHERE manager_name = 'Mary'
-  UNION ALL
-    SELECT er.distance + 1, e.employee_name, e.manager_name
-    FROM employee_recursive AS er, employee AS e
-    WHERE er.employee_name = e.manager_name
-)
-SELECT distance, employee_name FROM employee_recursive
+-- PostgreSQL
+INSERT INTO users (name, email) VALUES ($1, $2)   -- args: ['Jane Doe', 'jane@example.com']
+-- MySQL / MariaDB
+INSERT INTO users (name, email) VALUES (?, ?)     -- args: ['Jane Doe', 'jane@example.com']
+```
+
+#### Upsert
+
+The engines model conflict handling differently:
+
+```php
+// PostgreSQL: INSERT ... ON CONFLICT ... DO UPDATE
+use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
+
+$q = Q::insertInto(Q::n('distributors'))
+    ->columnNames('did', 'dname')
+    ->values(Q::int(5), Q::string('Gizmo Transglobal'))
+    ->onConflict(Q::n('did'))->doUpdate()
+    ->set('dname', Q::n('EXCLUDED.dname'));
+// INSERT INTO distributors (did, dname) VALUES (5, 'Gizmo Transglobal')
+// ON CONFLICT (did) DO UPDATE SET dname = EXCLUDED.dname
+```
+
+```php
+// MySQL / MariaDB: INSERT ... ON DUPLICATE KEY UPDATE
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+// MySQL: alias the proposed row with AS new, reference it as new.col
+$q = Q::insertInto(Q::n('t'))
+    ->columnNames('id', 'hits')->values(Q::arg(1), Q::arg(10))->as('new')
+    ->onDuplicateKeyUpdate()->set('hits', Q::n('new.hits'));
+// INSERT INTO t (id,hits) VALUES (?,?) AS new ON DUPLICATE KEY UPDATE hits = new.hits
+
+// Portable: the VALUES(col) function works on both engines
+$q = Q::insertInto(Q::n('t'))
+    ->columnNames('id', 'hits')->values(Q::arg(1), Q::arg(10))
+    ->onDuplicateKeyUpdate()->set('hits', Q::values('hits'));
+// INSERT INTO t (id,hits) VALUES (?,?) ON DUPLICATE KEY UPDATE hits = VALUES(hits)
+```
+
+`->as('new')` is MySQL-only (reported against MariaDB). The MySQL family also has
+`Q::insertInto(...)->ignore()` (`INSERT IGNORE`) and `Q::replaceInto(...)` (a
+`REPLACE` statement with the same surface).
+
+#### RETURNING
+
+```php
+// PostgreSQL
+use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
+
+$q = Q::insertInto(Q::n('users'))
+    ->columnNames('name')->values(Q::arg('Jane'))
+    ->returning(Q::n('id'), Q::n('created_at'));
+// INSERT INTO users (name) VALUES ($1) RETURNING id, created_at
+```
+
+```php
+// MariaDB (INSERT / REPLACE / single-table DELETE) — reported against Target::mysql()
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+$q = Q::insertInto(Q::n('t'))->columnNames('a')->values(Q::arg(1))
+    ->returning(Q::n('id'))->as('new_id');
+// INSERT INTO t (a) VALUES (?) RETURNING id AS new_id
+```
+
+### UPDATE
+
+```php
+$q = Q::update(Q::n('films'))
+    ->set('kind', Q::arg('Dramatic'))
+    ->where(Q::n('kind')->eq(Q::arg('Drama')));
+```
+
+```sql
+-- PostgreSQL
+UPDATE films SET kind = $1 WHERE kind = $2   -- args: ['Dramatic', 'Drama']
+-- MySQL / MariaDB
+UPDATE films SET kind = ? WHERE kind = ?     -- args: ['Dramatic', 'Drama']
+```
+
+Joining another table is spelled per family — PostgreSQL uses `UPDATE ... FROM`,
+the MySQL family uses a multi-table `JOIN`:
+
+```php
+// PostgreSQL
+$q = Q::update(Q::n('employees'))->as('e')
+    ->set('department_name', Q::n('d.name'))
+    ->from(Q::n('departments'))->as('d')
+    ->where(Q::n('e.department_id')->eq(Q::n('d.id')));
+// UPDATE employees AS e SET department_name = d.name FROM departments AS d WHERE e.department_id = d.id
+
+// MySQL / MariaDB
+$q = Q::update(Q::n('t1'))
+    ->leftJoin(Q::n('t2'))->on(Q::n('t1.id')->eq(Q::n('t2.id')))
+    ->set('t1.col1', Q::n('t2.col1'))
+    ->where(Q::n('t2.col2')->isNull());
+// UPDATE t1 LEFT JOIN t2 ON t1.id = t2.id SET t1.col1 = t2.col1 WHERE t2.col2 IS NULL
+```
+
+> On the MySQL family, `->orderBy()` / `->limit()` are available on
+> *single-table* UPDATE only; combining them with a join raises a
+> `QueryBuilderException` when the query is built.
+
+### DELETE
+
+```php
+$q = Q::deleteFrom(Q::n('films'))
+    ->where(Q::n('kind')->neq(Q::arg('Musical')));
+```
+
+```sql
+-- PostgreSQL
+DELETE FROM films WHERE kind <> $1   -- args: ['Musical']
+-- MySQL / MariaDB
+DELETE FROM films WHERE kind <> ?    -- args: ['Musical']
+```
+
+Joining is `DELETE ... USING` on PostgreSQL and a multi-table `JOIN` on the MySQL
+family:
+
+```php
+// PostgreSQL
+$q = Q::deleteFrom(Q::n('films'))
+    ->using(Q::n('producers'))
+    ->where(Q::n('producer_id')->eq(Q::n('producers.id')));
+// DELETE FROM films USING producers WHERE producer_id = producers.id
+
+// MySQL / MariaDB
+$q = Q::deleteFrom(Q::n('t1'))
+    ->leftJoin(Q::n('t2'))->on(Q::n('t1.id')->eq(Q::n('t2.id')))
+    ->where(Q::n('t2.id')->isNull());
+// DELETE t1.* FROM t1 LEFT JOIN t2 ON t1.id = t2.id WHERE t2.id IS NULL
 ```
 
 ### Functions & operators
 
-#### String functions
-
-```php
-$q = Q::select(
-    Q\Func::upper(Q::n('name')),
-    Q\Func::lower(Q::n('email')),
-    Q\Func::initcap(Q::n('title')),
-)->from(Q::n('users'));
-```
-
-```sql
-SELECT upper(name), lower(email), initcap(title)
-FROM users
-```
-
-#### Date/time functions
-
-```php
-$q = Q::select(
-    Q\Func::extract('year', Q::n('created_at')),
-    Q::n('created_at')->plus(Q::interval('1 day')),
-)->from(Q::n('orders'));
-```
-
-```sql
-SELECT EXTRACT(year FROM created_at), created_at + INTERVAL '1 day'
-FROM orders
-```
-
-#### Mathematical operators
-
-```php
-$q = Q::select(Q::n('price')->op('*', Q::n('quantity')))->as('total')
-    ->from(Q::n('order_items'));
-```
-
-```sql
-SELECT price * quantity AS total FROM order_items
-```
-
-#### CASE expressions
+#### CASE
 
 ```php
 $q = Q::select(
@@ -787,33 +920,71 @@ $q = Q::select(
 ```
 
 ```sql
+-- PostgreSQL / MySQL / MariaDB
 SELECT name,
-       CASE
-           WHEN salary < 30000 THEN 'Low'
-           WHEN salary < 70000 THEN 'Medium'
-           ELSE 'High'
-       END
+       CASE WHEN salary < 30000 THEN 'Low'
+            WHEN salary < 70000 THEN 'Medium'
+            ELSE 'High' END
 FROM employees
 ```
 
 #### Casts
 
 ```php
-$q = Q::select(Q::n('articles.content')->cast('text'))
-    ->from(Q::n('articles'))
-    ->where(Q::n('articles.content')->cast('text')->ilike(Q::arg('%foo%')));
+// PostgreSQL: the :: operator via ->cast()
+$q = Q::select(Q::n('articles.content')->cast('text'))->from(Q::n('articles'));
+// SELECT articles.content::text FROM articles
+
+// MySQL / MariaDB: CAST / CONVERT through the facade
+$q = Q::select(Q::cast(Q::n('a'), 'UNSIGNED'), Q::convert(Q::n('a'), 'DECIMAL(10,2)'));
+// SELECT CAST(a AS UNSIGNED), CONVERT(a, DECIMAL(10,2))
 ```
 
-```sql
-SELECT articles.content::text FROM articles WHERE articles.content::text ILIKE $1
--- args: ['%foo%']
+#### Scalar functions
+
+Each family exposes its own curated function set via `Q\Func`:
+
+```php
+// PostgreSQL
+$q = Q::select(Q\Func::upper(Q::n('name')), Q\Func::extract('year', Q::n('created_at')))
+    ->from(Q::n('users'));
+// SELECT upper(name), EXTRACT(year FROM created_at) FROM users
+
+// MySQL / MariaDB
+$q = Q::select(Q\Func::upper(Q::n('name')), Q\Func::dateAdd(Q::n('created'), Q::interval(Q::int(1), 'DAY')))
+    ->from(Q::n('users'));
+// SELECT UPPER(name), DATE_ADD(created, INTERVAL 1 DAY) FROM users
 ```
+
+Anything not on `Q\Func` is reachable through the raw escape hatch
+`Q::func('NAME', ...args)`.
+
+### Locking
+
+`->forUpdate()` (optionally `->nowait()` / `->skipLocked()`) is shared. The
+shared lock diverges within the MySQL family:
+
+```php
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+// MySQL: FOR SHARE (+ of() / nowait() / skipLocked())
+$q = Q::select(Q::n('id'))->from(Q::n('t'))->forShare()->of('t')->nowait();
+// SELECT id FROM t FOR SHARE OF t NOWAIT
+
+// MariaDB: LOCK IN SHARE MODE
+$q = Q::select(Q::n('id'))->from(Q::n('t'))->lockInShareMode();
+// SELECT id FROM t LOCK IN SHARE MODE
+```
+
+`->of(...)` is MySQL-only even on `FOR UPDATE`; validating a query that uses it
+against `Target::mariaDb()` reports it.
 
 ## Parameters
 
 ### Positional parameters
 
-Each `Q::arg()` becomes a numbered placeholder in order of appearance:
+Each `Q::arg()` becomes a placeholder in order of appearance — `$1`, `$2`, … on
+PostgreSQL, `?` on the MySQL family:
 
 ```php
 $q = Q::select(Q::n('*'))
@@ -824,44 +995,60 @@ $q = Q::select(Q::n('*'))
     ));
 
 [$sql, $args] = Q::build($q)->toSql();
-```
-
-```sql
-SELECT * FROM users WHERE name LIKE $1 AND active = $2
--- args: ['John%', true]
+// PostgreSQL: SELECT * FROM users WHERE name LIKE $1 AND active = $2   args: ['John%', true]
+// MySQL:      SELECT * FROM users WHERE name LIKE ? AND active = ?     args: ['John%', true]
 ```
 
 ### Named parameters
 
-`Q::bind()` declares a named placeholder; bind the values with
-`withNamedArgs()`. Reusing the same name reuses its placeholder:
+`Q::bind()` declares a named placeholder; bind the values with `withNamedArgs()`:
 
 ```php
 $q = Q::select(Q::n('*'))
     ->from(Q::n('users'))
-    ->where(Q::and(
-        Q::n('name')->like(Q::bind('search')),
-        Q::n('active')->eq(Q::bind('is_active')),
-    ));
+    ->where(Q::n('name')->like(Q::bind('search')));
 
-[$sql, $args] = Q::build($q)
-    ->withNamedArgs(['search' => 'John%', 'is_active' => true])
-    ->toSql();
+[$sql, $args] = Q::build($q)->withNamedArgs(['search' => 'John%'])->toSql();
 ```
 
-```sql
-SELECT * FROM users WHERE name LIKE $1 AND active = $2
--- args: ['John%', true]
-```
+On PostgreSQL a reused name reuses its `$n` placeholder. On the MySQL family a
+`?` placeholder is not reusable, so each occurrence of a name emits its own `?`,
+each bound to the same value. Named and positional parameters can be mixed.
 
-Named and positional parameters can be mixed in the same query.
+## Validation & errors
+
+By default the builder validates while rendering; problems are collected and
+thrown together as one `QueryBuilderException` from `toSql()`. There are three
+mechanisms:
+
+- **Advisory value checks** — a suspect *value or modifier* in an otherwise
+  well-formed statement: an invalid identifier or cast type, an empty `CASE`, a
+  `DISTINCT` on an aggregate whose grammar rejects it. These throw when built but
+  still render under `Q::build($q)->withoutValidation()->toSql()` — the escape
+  hatch for callers who know better.
+
+  ```php
+  Q::build(Q::n('foo bar'))->toSql();                       // throws: identifier: invalid: foo bar
+  [$sql] = Q::build(Q::n('foo bar'))->withoutValidation()->toSql();  // 'foo bar'
+  ```
+
+- **Mutually-exclusive builder state** — two options that cannot coexist in one
+  statement (e.g. setting both `values` and a `query` on an INSERT, or
+  `ORDER BY`/`LIMIT` on a multi-table UPDATE/DELETE). This is builder-API misuse,
+  so it *always* throws, even with validation disabled.
+
+- **Target validation** (MySQL family only, opt-in) —
+  `Q::build($q)->withValidateTarget(Target::mysql() | mariaDb($version))` reports
+  constructs the target engine/version cannot express. See
+  [MySQL & MariaDB](#opt-in-target-validation).
 
 ## Executing queries
 
-The builder is driver-agnostic: it produces a SQL string with PostgreSQL
-numbered placeholders (`$1`, `$2`, …) and a positional argument list. Feed both
-to any layer that speaks PostgreSQL's native placeholders, for example the
-[`pgsql` extension](https://www.php.net/manual/en/book.pgsql.php):
+The builder is driver-agnostic: it produces a SQL string with the dialect's
+placeholders and a positional argument list. Feed both to any layer that speaks
+that dialect's placeholders.
+
+**PostgreSQL** (e.g. the [`pgsql` extension](https://www.php.net/manual/en/book.pgsql.php)):
 
 ```php
 use Flowpack\QueryObjectBuilder\PostgreSQL\Q;
@@ -880,9 +1067,25 @@ while ($row = pg_fetch_assoc($result)) {
 }
 ```
 
-By default, identifiers are validated while building and an invalid name throws
-a `QueryBuilderException`. Skip validation with
-`Q::build($q)->withoutValidation()->toSql()` when you trust the input.
+**MySQL / MariaDB** (e.g. PDO):
+
+```php
+use Flowpack\QueryObjectBuilder\MySQL\Q;
+
+$pdo = new PDO('mysql:host=localhost;dbname=app', 'app', 'secret');
+
+$q = Q::select(Q::n('name'), Q::n('email'))
+    ->from(Q::n('users'))
+    ->where(Q::n('active')->eq(Q::arg(true)));
+
+[$sql, $args] = Q::build($q)->toSql();
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($args);
+foreach ($stmt as $row) {
+    printf("Name: %s, Email: %s\n", $row['name'], $row['email']);
+}
+```
 
 ## Best practices
 
@@ -902,8 +1105,8 @@ breaking the fluent chain:
 
 ```php
 $q = Q::update(Q::n('films'))
-    ->set('kind', Q::string('Dramatic'))
-    ->where(Q::n('kind')->eq(Q::string('Drama')))
+    ->set('kind', Q::arg('Dramatic'))
+    ->where(Q::n('kind')->eq(Q::arg('Drama')))
     ->applyIf($onlyActive, fn ($q) => $q->where(Q::n('archived')->eq(Q::bool(false))));
 ```
 

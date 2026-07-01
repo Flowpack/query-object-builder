@@ -105,7 +105,7 @@ describe('MySQL curated function set', function () {
         'convertTz' => [fn () => Q\Func::convertTz(Q::n('d'), Q::string('+00:00'), Q::string('+02:00')), "CONVERT_TZ(d, '+00:00', '+02:00')"],
 
         // JSON
-        'jsonObject' => [fn () => Q\Func::jsonObject(Q::string('k'), Q::n('v')), "JSON_OBJECT('k', v)"],
+        'jsonObject' => [fn () => Q\Func::jsonObject()->prop('k', Q::n('v')), "JSON_OBJECT('k', v)"],
         'jsonArray' => [fn () => Q\Func::jsonArray(Q::int(1), Q::int(2)), 'JSON_ARRAY(1, 2)'],
         'jsonQuote' => [fn () => Q\Func::jsonQuote(Q::n('s')), 'JSON_QUOTE(s)'],
         'jsonExtract' => [fn () => Q\Func::jsonExtract(Q::n('doc'), Q::string('$.a')), "JSON_EXTRACT(doc, '$.a')"],

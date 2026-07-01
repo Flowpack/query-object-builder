@@ -10,6 +10,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\ExtractExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\GroupConcatBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\JsonObjectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Keyword;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\OrderedSetAggBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Requirement;
@@ -861,10 +862,15 @@ final class Func
 
     // JSON functions
 
-    /** `JSON_OBJECT(key, value, ...)`. */
-    public static function jsonObject(Exp ...$keysValues): FuncExp
+    /**
+     * `JSON_OBJECT(key, value, ...)`, built from key/value properties.
+     *
+     * Add properties with `->prop('key', $value)` (string keys only; for a
+     * computed key use the `Q::func('JSON_OBJECT', ...)` escape hatch).
+     */
+    public static function jsonObject(): JsonObjectBuilder
     {
-        return self::call('JSON_OBJECT', ...$keysValues);
+        return new JsonObjectBuilder();
     }
 
     /** `JSON_ARRAY(...)`. */

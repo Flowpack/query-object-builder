@@ -25,6 +25,8 @@ final class SelectQueryParts
      */
     public function __construct(
         public readonly bool $distinct = false,
+        public readonly ?JsonObjectBuilder $selectJson = null,
+        public readonly string $selectJsonAlias = '',
         public readonly array $selectList = [],
         public readonly array $from = [],
         public readonly array $whereConjunction = [],
@@ -41,7 +43,7 @@ final class SelectQueryParts
 
     public function isEmpty(): bool
     {
-        return !$this->distinct && $this->selectList === [] && $this->from === []
+        return !$this->distinct && $this->selectJson === null && $this->selectList === [] && $this->from === []
             && $this->whereConjunction === [] && $this->groupBys === [] && $this->havingConjunction === []
             && $this->windows === [] && $this->orderBys === [] && $this->limit === null && $this->offset === null
             && $this->lockingClause === null;

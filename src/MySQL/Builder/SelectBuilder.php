@@ -58,6 +58,20 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
     }
 
     /**
+     * Apply a function to the JSON selection (an empty JSON_OBJECT if none is set
+     * yet). The JSON selection is always written as the first select element.
+     *
+     * @param callable(JsonObjectBuilder): JsonObjectBuilder $apply
+     */
+    public function applySelectJson(callable $apply): SelectJsonSelectBuilder
+    {
+        return $this->derive(
+            SelectJsonSelectBuilder::class,
+            selectJson: $apply($this->parts->selectJson ?? new JsonObjectBuilder()),
+        );
+    }
+
+    /**
      * Add a table / subquery to the FROM clause.
      */
     public function from(FromExp $from): FromSelectBuilder
@@ -383,6 +397,8 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
         string $class,
         ?SelectQueryParts $parts = null,
         ?bool $distinct = null,
+        ?JsonObjectBuilder $selectJson = null,
+        ?string $selectJsonAlias = null,
         ?array $selectList = null,
         ?array $from = null,
         ?array $whereConjunction = null,
@@ -399,6 +415,8 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
     ): SelectBuilder {
         $parts ??= new SelectQueryParts(
             distinct: $distinct ?? $this->parts->distinct,
+            selectJson: $selectJson ?? $this->parts->selectJson,
+            selectJsonAlias: $selectJsonAlias ?? $this->parts->selectJsonAlias,
             selectList: $selectList ?? $this->parts->selectList,
             from: $from ?? $this->parts->from,
             whereConjunction: $whereConjunction ?? $this->parts->whereConjunction,
@@ -474,6 +492,18 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
         $sb->writeString('SELECT ');
         $s = $parts->distinct ? 'DISTINCT ' : '';
         $needComma = false;
+
+        // The JSON selection is always the first select element.
+        if ($parts->selectJson !== null) {
+            $sb->writeString($s);
+            $s = '';
+
+            $parts->selectJson->writeSql($sb);
+            if ($parts->selectJsonAlias !== '') {
+                $s = ' AS ' . $parts->selectJsonAlias;
+            }
+            $needComma = true;
+        }
 
         foreach ($parts->selectList as $out) {
             if ($needComma) {

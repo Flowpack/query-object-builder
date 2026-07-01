@@ -22,6 +22,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\IdentExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\InsertBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntervalExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntLiteral;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\JsonObjectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\JsonTableBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
@@ -29,6 +30,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Precedence;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\ReplaceBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectJsonSelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectSelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\StringLiteral;
@@ -60,6 +62,17 @@ final class Q
     public static function select(Exp ...$exps): SelectSelectBuilder
     {
         return (new SelectBuilder())->select(...$exps);
+    }
+
+    /**
+     * Start a select whose primary output is a single JSON object.
+     *
+     * The JSON selection is always the first select element; refine it later with
+     * `applySelectJson()` and alias it with `as()`.
+     */
+    public static function selectJson(JsonObjectBuilder $obj): SelectJsonSelectBuilder
+    {
+        return (new SelectBuilder())->applySelectJson(static fn (JsonObjectBuilder $existing): JsonObjectBuilder => $obj);
     }
 
     /**

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\JsonObjectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Q;
 
 // JSON shapes are assembled from the constructor and aggregate functions documented at
@@ -20,19 +20,17 @@ describe('MySQL JSON shape selection', function () {
             $q = Q::with('author_json')->as(
                 Q::select(Q::n('authors.author_id'))
                     ->select(
-                        Q\Func::jsonObject(
-                            Q::string('id'), Q::n('authors.author_id'),
-                            Q::string('name'), Q::n('authors.name'),
-                        ),
+                        Q\Func::jsonObject()
+                            ->prop('id', Q::n('authors.author_id'))
+                            ->prop('name', Q::n('authors.name')),
                     )->as('json')
                     ->from(Q::n('authors')),
             )
                 ->select(
                     Q::n('posts.post_id'),
-                    Q\Func::jsonObject(
-                        Q::string('title'), Q::n('posts.title'),
-                        Q::string('author'), Q::n('author_json.json'),
-                    ),
+                    Q\Func::jsonObject()
+                        ->prop('title', Q::n('posts.title'))
+                        ->prop('author', Q::n('author_json.json')),
                 )
                 ->from(Q::n('posts'))
                 ->leftJoin(Q::n('author_json'))->on(Q::n('posts.author_id')->eq(Q::n('author_json.author_id')))
@@ -69,10 +67,9 @@ describe('MySQL JSON shape selection', function () {
                 Q::n('u.id'),
                 Q::n('u.name'),
                 Q\Func::jsonArrayAgg(
-                    Q\Func::jsonObject(
-                        Q::string('id'), Q::n('o.id'),
-                        Q::string('total'), Q::n('o.total'),
-                    ),
+                    Q\Func::jsonObject()
+                        ->prop('id', Q::n('o.id'))
+                        ->prop('total', Q::n('o.total')),
                 ),
             )->as('orders')
                 ->from(Q::n('users'))->as('u')
@@ -100,10 +97,9 @@ describe('MySQL JSON shape selection', function () {
                 Q::select(
                     Q::coalesce(
                         Q\Func::jsonArrayAgg(
-                            Q\Func::jsonObject(
-                                Q::string('id'), Q::n('c.id'),
-                                Q::string('name'), Q::n('c.name'),
-                            ),
+                            Q\Func::jsonObject()
+                                ->prop('id', Q::n('c.id'))
+                                ->prop('name', Q::n('c.name')),
                         ),
                         Q\Func::jsonArray(),
                     ),
@@ -138,11 +134,10 @@ describe('MySQL JSON shape selection', function () {
                 Q::n('a.author_id'),
                 Q::coalesce(
                     Q\Func::jsonArrayAgg(
-                        Q\Func::jsonObject(
-                            Q::string('ID'), Q::n('b.book_id'),
-                            Q::string('Title'), Q::n('b.title'),
-                            Q::string('PublicationYear'), Q::n('b.publication_year'),
-                        ),
+                        Q\Func::jsonObject()
+                            ->prop('ID', Q::n('b.book_id'))
+                            ->prop('Title', Q::n('b.title'))
+                            ->prop('PublicationYear', Q::n('b.publication_year')),
                     ),
                     Q\Func::jsonArray(),
                 ),
@@ -177,10 +172,9 @@ describe('MySQL JSON shape selection', function () {
                 Q::n('p.name'),
                 Q\Func::jsonObjectAgg(
                     Q::n('c.id'),
-                    Q\Func::jsonObject(
-                        Q::string('id'), Q::n('c.id'),
-                        Q::string('name'), Q::n('c.name'),
-                    ),
+                    Q\Func::jsonObject()
+                        ->prop('id', Q::n('c.id'))
+                        ->prop('name', Q::n('c.name')),
                 ),
             )->as('children_by_id')
                 ->from(Q::n('parent'))->as('p')
@@ -208,12 +202,11 @@ describe('MySQL JSON shape selection', function () {
                 Q::select(Q::n('author_id'))
                     ->select(
                         Q::coalesce(
-                            Q\Func::jsonArrayAgg(Q\Func::jsonObject(
-                                Q::string('Title'), Q::n('books.title'),
-                                Q::string('AuthorID'), Q::n('books.author_id'),
-                                Q::string('PublicationYear'), Q::n('books.publication_year'),
-                                Q::string('ID'), Q::n('books.book_id'),
-                            )),
+                            Q\Func::jsonArrayAgg(Q\Func::jsonObject()
+                                ->prop('Title', Q::n('books.title'))
+                                ->prop('AuthorID', Q::n('books.author_id'))
+                                ->prop('PublicationYear', Q::n('books.publication_year'))
+                                ->prop('ID', Q::n('books.book_id'))),
                             Q\Func::jsonArray(),
                         ),
                     )->as('books')
@@ -224,10 +217,9 @@ describe('MySQL JSON shape selection', function () {
                     Q::select(Q::n('book_id'))
                         ->select(
                             Q::coalesce(
-                                Q\Func::jsonArrayAgg(Q\Func::jsonObject(
-                                    Q::string('GenreID'), Q::n('genres.genre_id'),
-                                    Q::string('Name'), Q::n('genres.name'),
-                                )),
+                                Q\Func::jsonArrayAgg(Q\Func::jsonObject()
+                                    ->prop('GenreID', Q::n('genres.genre_id'))
+                                    ->prop('Name', Q::n('genres.name'))),
                                 Q\Func::jsonArray(),
                             ),
                         )->as('genres')
@@ -236,18 +228,16 @@ describe('MySQL JSON shape selection', function () {
                         ->groupBy(Q::n('book_id')),
                 )
                 ->select(
-                    Q\Func::jsonObject(
-                        Q::string('Title'), Q::n('books.title'),
-                        Q::string('AuthorID'), Q::n('books.author_id'),
-                        Q::string('PublicationYear'), Q::n('books.publication_year'),
-                        Q::string('ID'), Q::n('books.book_id'),
-                        Q::string('Author'), Q\Func::jsonObject(
-                            Q::string('AuthorID'), Q::n('authors.author_id'),
-                            Q::string('Name'), Q::n('authors.name'),
-                            Q::string('Books'), Q::n('author_books.books'),
-                        ),
-                        Q::string('Genres'), Q::n('book_genres.genres'),
-                    ),
+                    Q\Func::jsonObject()
+                        ->prop('Title', Q::n('books.title'))
+                        ->prop('AuthorID', Q::n('books.author_id'))
+                        ->prop('PublicationYear', Q::n('books.publication_year'))
+                        ->prop('ID', Q::n('books.book_id'))
+                        ->prop('Author', Q\Func::jsonObject()
+                            ->prop('AuthorID', Q::n('authors.author_id'))
+                            ->prop('Name', Q::n('authors.name'))
+                            ->prop('Books', Q::n('author_books.books')))
+                        ->prop('Genres', Q::n('book_genres.genres')),
                 )
                 ->from(Q::n('books'))
                 ->leftJoin(Q::n('authors'))->using('author_id')
@@ -315,43 +305,39 @@ describe('MySQL JSON shape selection', function () {
 
         it('with correlated subselects', function () {
             $q = Q::select(
-                Q\Func::jsonObject(
-                    Q::string('Title'), Q::n('books.title'),
-                    Q::string('AuthorID'), Q::n('books.author_id'),
-                    Q::string('PublicationYear'), Q::n('books.publication_year'),
-                    Q::string('ID'), Q::n('books.book_id'),
-                    Q::string('Author'), Q::select(
-                        Q\Func::jsonObject(
-                            Q::string('AuthorID'), Q::n('authors.author_id'),
-                            Q::string('Name'), Q::n('authors.name'),
-                            Q::string('Books'), Q::select(
+                Q\Func::jsonObject()
+                    ->prop('Title', Q::n('books.title'))
+                    ->prop('AuthorID', Q::n('books.author_id'))
+                    ->prop('PublicationYear', Q::n('books.publication_year'))
+                    ->prop('ID', Q::n('books.book_id'))
+                    ->prop('Author', Q::select(
+                        Q\Func::jsonObject()
+                            ->prop('AuthorID', Q::n('authors.author_id'))
+                            ->prop('Name', Q::n('authors.name'))
+                            ->prop('Books', Q::select(
                                 Q::coalesce(
-                                    Q\Func::jsonArrayAgg(Q\Func::jsonObject(
-                                        Q::string('Title'), Q::n('books.title'),
-                                        Q::string('ID'), Q::n('books.book_id'),
-                                    )),
+                                    Q\Func::jsonArrayAgg(Q\Func::jsonObject()
+                                        ->prop('Title', Q::n('books.title'))
+                                        ->prop('ID', Q::n('books.book_id'))),
                                     Q\Func::jsonArray(),
                                 ),
                             )
                                 ->from(Q::n('books'))
-                                ->where(Q::n('books.author_id')->eq(Q::n('authors.author_id'))),
-                        ),
+                                ->where(Q::n('books.author_id')->eq(Q::n('authors.author_id')))),
                     )
                         ->from(Q::n('authors'))
-                        ->where(Q::n('authors.author_id')->eq(Q::n('books.author_id'))),
-                    Q::string('Genres'), Q::select(
+                        ->where(Q::n('authors.author_id')->eq(Q::n('books.author_id'))))
+                    ->prop('Genres', Q::select(
                         Q::coalesce(
-                            Q\Func::jsonArrayAgg(Q\Func::jsonObject(
-                                Q::string('GenreID'), Q::n('genres.genre_id'),
-                                Q::string('Name'), Q::n('genres.name'),
-                            )),
+                            Q\Func::jsonArrayAgg(Q\Func::jsonObject()
+                                ->prop('GenreID', Q::n('genres.genre_id'))
+                                ->prop('Name', Q::n('genres.name'))),
                             Q\Func::jsonArray(),
                         ),
                     )
                         ->from(Q::n('book_genre'))
                         ->leftJoin(Q::n('genres'))->using('genre_id')
-                        ->where(Q::n('book_genre.book_id')->eq(Q::n('books.book_id'))),
-                ),
+                        ->where(Q::n('book_genre.book_id')->eq(Q::n('books.book_id')))),
             )
                 ->from(Q::n('books'))
                 ->where(Q::n('books.book_id')->eq(Q::arg(2)));
@@ -408,12 +394,11 @@ describe('MySQL JSON shape selection', function () {
 
         it('without nested relations', function () {
             $q = Q::select(
-                Q\Func::jsonObject(
-                    Q::string('Title'), Q::n('books.title'),
-                    Q::string('AuthorID'), Q::n('books.author_id'),
-                    Q::string('PublicationYear'), Q::n('books.publication_year'),
-                    Q::string('ID'), Q::n('books.book_id'),
-                ),
+                Q\Func::jsonObject()
+                    ->prop('Title', Q::n('books.title'))
+                    ->prop('AuthorID', Q::n('books.author_id'))
+                    ->prop('PublicationYear', Q::n('books.publication_year'))
+                    ->prop('ID', Q::n('books.book_id')),
             )
                 ->from(Q::n('books'))
                 ->where(Q::n('books.book_id')->eq(Q::arg(2)));
@@ -434,22 +419,13 @@ describe('MySQL JSON shape selection', function () {
                 SQL, [2]);
         });
 
-        it('builds the JSON object conditionally in application code', function () {
-            // JSON_OBJECT takes a flat key/value list, so a JSON shape is assembled
-            // by composing the argument array before the call — the same immutable
-            // building the fluent API relies on.
-            $buildBookJson = static function (bool $includeAuthor): FuncExp {
-                $props = [
-                    Q::string('Title'), Q::n('books.title'),
-                    Q::string('ID'), Q::n('books.book_id'),
-                ];
-                if ($includeAuthor) {
-                    $props[] = Q::string('AuthorID');
-                    $props[] = Q::n('books.author_id');
-                }
-
-                return Q\Func::jsonObject(...$props);
-            };
+        it('builds the JSON object conditionally with propIf', function () {
+            // The builder assembles a shape incrementally, so an optional property
+            // drops out with propIf() — no hand-composed argument list needed.
+            $buildBookJson = static fn (bool $includeAuthor): JsonObjectBuilder => Q\Func::jsonObject()
+                ->prop('Title', Q::n('books.title'))
+                ->prop('ID', Q::n('books.book_id'))
+                ->propIf($includeAuthor, 'AuthorID', Q::n('books.author_id'));
 
             $with = Q::select($buildBookJson(true))->from(Q::n('books'));
             $without = Q::select($buildBookJson(false))->from(Q::n('books'));
