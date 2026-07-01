@@ -194,7 +194,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
      */
     public function forShare(): ForSelectBuilder
     {
-        return $this->withLocking(ForSelectBuilder::class, new LockingClause('FOR SHARE', requires: new Requirement(Dialect::Mysql)));
+        return $this->withLocking(ForSelectBuilder::class, new LockingClause('FOR SHARE', requires: Requirement::mysql()));
     }
 
     /**
@@ -202,7 +202,7 @@ class SelectBuilder implements InnerSqlWriter, WithQuery, Exp, FromLateralExp, S
      */
     public function lockInShareMode(): SelectBuilder
     {
-        return $this->withLocking(SelectBuilder::class, new LockingClause('LOCK IN SHARE MODE', requires: new Requirement(Dialect::MariaDb)));
+        return $this->withLocking(SelectBuilder::class, new LockingClause('LOCK IN SHARE MODE', requires: Requirement::mariaDb()));
     }
 
     /**

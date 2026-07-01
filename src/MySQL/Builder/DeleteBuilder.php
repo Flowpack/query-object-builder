@@ -184,7 +184,7 @@ class DeleteBuilder implements InnerSqlWriter
         }
 
         if ($this->withQueries !== []) {
-            $sb->requireAnyDialect('WITH before DELETE', new Requirement(Dialect::Mysql), new Requirement(Dialect::MariaDb, gteVersion: '12.3'));
+            $sb->requireAnyDialect('WITH before DELETE', Requirement::mysql(), Requirement::mariaDb(gteVersion: '12.3'));
             $this->writeWithQueries($sb, $this->withQueries);
         }
 

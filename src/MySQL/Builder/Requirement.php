@@ -24,6 +24,22 @@ final class Requirement
     }
 
     /**
+     * A requirement on MySQL, optionally within a `[gteVersion, ltVersion)` window.
+     */
+    public static function mysql(?string $gteVersion = null, ?string $ltVersion = null): self
+    {
+        return new self(Dialect::Mysql, $gteVersion, $ltVersion);
+    }
+
+    /**
+     * A requirement on MariaDB, optionally within a `[gteVersion, ltVersion)` window.
+     */
+    public static function mariaDb(?string $gteVersion = null, ?string $ltVersion = null): self
+    {
+        return new self(Dialect::MariaDb, $gteVersion, $ltVersion);
+    }
+
+    /**
      * Whether the given target is this dialect and — if the target carries a version
      * — falls within the version window. A target with no version is version-agnostic
      * and matches any window (only the dialect must match).
