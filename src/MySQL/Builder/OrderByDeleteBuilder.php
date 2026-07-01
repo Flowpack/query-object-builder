@@ -10,5 +10,31 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  */
 final class OrderByDeleteBuilder extends DeleteBuilder
 {
-    use OrdersLastDeleteTerm;
+    public function asc(): static
+    {
+        return $this->derive(static::class, orderBys: $this->rebuildLastOrderBy(SortOrder::Asc));
+    }
+
+    public function desc(): static
+    {
+        return $this->derive(static::class, orderBys: $this->rebuildLastOrderBy(SortOrder::Desc));
+    }
+
+    /**
+     * Return the order by list with the last term replaced by a copy carrying the
+     * given sort direction.
+     *
+     * @return list<OrderByClause>
+     */
+    private function rebuildLastOrderBy(SortOrder $order): array
+    {
+        $orderBys = $this->orderBys;
+        $lastIdx = array_key_last($orderBys);
+        assert($lastIdx !== null);
+
+        $clause = $orderBys[$lastIdx];
+        $orderBys[$lastIdx] = new OrderByClause($clause->exp, $order);
+
+        return $orderBys;
+    }
 }

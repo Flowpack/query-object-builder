@@ -10,5 +10,11 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  */
 final class GroupBySelectBuilder extends SelectBuilder
 {
-    use AppliesRollup;
+    /**
+     * Add super-aggregate rows over the grouping (`GROUP BY ... WITH ROLLUP`).
+     */
+    public function withRollup(): static
+    {
+        return $this->derive(static::class, groupByWithRollup: true);
+    }
 }
