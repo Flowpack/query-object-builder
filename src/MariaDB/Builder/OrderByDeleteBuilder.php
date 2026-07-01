@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
+namespace Flowpack\QueryObjectBuilder\MariaDB\Builder;
+
+use Flowpack\QueryObjectBuilder\MySQL\Builder\OrdersLastDeleteTerm;
 
 /**
  * The DELETE builder state right after adding an ORDER BY expression, where

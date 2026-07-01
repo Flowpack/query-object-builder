@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
+namespace Flowpack\QueryObjectBuilder\MariaDB\Builder;
+
+use Flowpack\QueryObjectBuilder\MySQL\Builder\AddsUpsertAssignment;
 
 /**
  * The INSERT builder state inside an `ON DUPLICATE KEY UPDATE` clause, where
