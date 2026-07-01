@@ -5,41 +5,54 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * A single `JSON_TABLE` column: either `name type PATH 'jsonpath'` or the
- * row-counter `name FOR ORDINALITY`.
+ * A single `JSON_TABLE` column. Depending on its {@see JsonTableColumnKind} it
+ * renders as `name type PATH 'p' [on_empty] [on_error]`, `name type EXISTS PATH
+ * 'p'`, `name FOR ORDINALITY`, or `NESTED PATH 'p' COLUMNS (...)`.
  *
  * @internal
  */
 final class JsonTableColumn
 {
-    private function __construct(
-        private readonly string $name,
-        private readonly bool $forOrdinality,
-        private readonly string $type,
-        private readonly string $path,
+    public function __construct(
+        public readonly string $name,
+        public readonly string $type,
+        public readonly JsonTableColumnKind $kind,
+        public readonly string $path,
+        public readonly ?JsonTableOnClause $onEmpty,
+        public readonly ?JsonTableOnClause $onError,
+        public readonly ?JsonTableColumns $nested,
     ) {
-    }
-
-    public static function path(string $name, string $type, string $path): self
-    {
-        return new self($name, false, $type, $path);
-    }
-
-    public static function ordinality(string $name): self
-    {
-        return new self($name, true, '', '');
     }
 
     public function writeSql(SqlBuilder $sb): void
     {
+        if ($this->kind === JsonTableColumnKind::Nested) {
+            assert($this->nested !== null);
+            $sb->writeString('NESTED PATH ');
+            (new StringLiteral($this->path))->writeSql($sb);
+            $sb->writeString(' COLUMNS (');
+            $this->nested->writeColumns($sb);
+            $sb->writeString(')');
+
+            return;
+        }
+
         $name = Keywords::quoteIdentifierIfKeyword($this->name);
-        if ($this->forOrdinality) {
+        if ($this->kind === JsonTableColumnKind::Ordinality) {
             $sb->writeString($name . ' FOR ORDINALITY');
 
             return;
         }
 
-        $sb->writeString($name . ' ' . $this->type . ' PATH ');
+        $keyword = $this->kind === JsonTableColumnKind::Exists ? ' EXISTS PATH ' : ' PATH ';
+        $sb->writeString($name . ' ' . $this->type . $keyword);
         (new StringLiteral($this->path))->writeSql($sb);
+
+        // ON EMPTY / ON ERROR apply to a plain value (PATH) column only, and MySQL
+        // requires ON EMPTY before ON ERROR.
+        if ($this->kind === JsonTableColumnKind::Path) {
+            $this->onEmpty?->writeSql($sb, 'EMPTY');
+            $this->onError?->writeSql($sb, 'ERROR');
+        }
     }
 }

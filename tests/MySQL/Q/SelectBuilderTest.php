@@ -108,13 +108,41 @@ describe('MySQL SELECT', function () {
             Q::select(Q::n('jt.id'), Q::n('jt.name'))
                 ->from(Q::n('t'))
                 ->from(
-                    Q::jsonTable(Q::n('t.doc'), '$[*]')
-                        ->column('id', 'INT', '$.id')
-                        ->column('name', 'VARCHAR(100)', '$.name')
-                        ->columnForOrdinality('rownum'),
+                    Q::jsonTable(Q::n('t.doc'), '$[*]')->columns(fn ($c) => $c
+                        ->column('id', 'INT')->path('$.id')
+                        ->column('name', 'VARCHAR(100)')->path('$.name')
+                        ->column('rownum')->forOrdinality()),
                 )->as('jt')
         )->toRenderSql(
             "SELECT jt.id,jt.name FROM t,JSON_TABLE(t.doc, '$[*]' COLUMNS (id INT PATH '$.id',name VARCHAR(100) PATH '$.name',rownum FOR ORDINALITY)) AS jt",
+        );
+    });
+
+    it('renders JSON_TABLE EXISTS PATH and ON EMPTY / ON ERROR columns', function () {
+        expect(
+            Q::jsonTable(Q::n('t.doc'), '$[*]')->columns(fn ($c) => $c
+                ->column('ac', 'VARCHAR(100)')->path('$.a')->defaultOnEmpty('111')->defaultOnError('999')
+                ->column('cx', 'VARCHAR(20)')->path('$.c')->nullOnEmpty()->errorOnError()
+                ->column('bx', 'INT')->existsPath('$.b'))
+        )->toRenderSql(
+            "JSON_TABLE(t.doc, '$[*]' COLUMNS (ac VARCHAR(100) PATH '$.a' DEFAULT '111' ON EMPTY DEFAULT '999' ON ERROR,cx VARCHAR(20) PATH '$.c' NULL ON EMPTY ERROR ON ERROR,bx INT EXISTS PATH '$.b'))",
+        );
+    });
+
+    it('renders nested JSON_TABLE columns', function () {
+        expect(
+            Q::select(Q::n('*'))->from(
+                Q::jsonTable(Q::n('t.doc'), '$[*]')->columns(fn ($c) => $c
+                    ->column('top_ord')->forOrdinality()
+                    ->column('apath', 'VARCHAR(10)')->path('$.a')
+                    ->nested()->path('$.b[*]')->columns(fn ($b) => $b
+                        ->column('bpath', 'VARCHAR(10)')->path('$.c')
+                        ->column('ord')->forOrdinality()
+                        ->nested()->path('$.l[*]')->columns(fn ($l) => $l
+                            ->column('lpath', 'VARCHAR(10)')->path('$')))),
+            )->as('jt')
+        )->toRenderSql(
+            "SELECT * FROM JSON_TABLE(t.doc, '$[*]' COLUMNS (top_ord FOR ORDINALITY,apath VARCHAR(10) PATH '$.a',NESTED PATH '$.b[*]' COLUMNS (bpath VARCHAR(10) PATH '$.c',ord FOR ORDINALITY,NESTED PATH '$.l[*]' COLUMNS (lpath VARCHAR(10) PATH '$')))) AS jt",
         );
     });
 });

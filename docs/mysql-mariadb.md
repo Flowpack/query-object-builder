@@ -148,6 +148,34 @@ SELECT depname,
 FROM empsalary WINDOW w AS (ORDER BY salary)
 ```
 
+### JSON_TABLE
+
+`Q::jsonTable(doc, path)` is a FROM-clause table function; define its columns with
+`columns()` (a closure receiving a column-list builder). `column()` opens a value
+column and `path()` gives its JSON path; `existsPath()` and `forOrdinality()` pick
+the other leaf forms, `defaultOnEmpty()`/`nullOnError()`/… add the miss handlers,
+and `nested()->path()->columns()` recurses.
+
+```php
+$q = Q::select(Q::n('jt.id'), Q::n('jt.tag'))
+    ->from(Q::n('t'))
+    ->from(
+        Q::jsonTable(Q::n('t.doc'), '$[*]')->columns(fn ($c) => $c
+            ->column('id', 'INT')->path('$.id')
+            ->column('ord')->forOrdinality()
+            ->nested()->path('$.tags[*]')->columns(fn ($tags) => $tags
+                ->column('tag', 'VARCHAR(50)')->path('$')))
+    )->as('jt');
+```
+
+```sql
+SELECT jt.id,jt.tag FROM t,
+  JSON_TABLE(t.doc, '$[*]' COLUMNS (
+    id INT PATH '$.id',
+    ord FOR ORDINALITY,
+    NESTED PATH '$.tags[*]' COLUMNS (tag VARCHAR(50) PATH '$'))) AS jt
+```
+
 ### INSERT & upsert
 
 The two engines reference the proposed row differently, so you build each one its
@@ -235,9 +263,7 @@ deliberately out of scope. Anything omitted remains reachable through the raw
   short form, MariaDB `OFFSET..FETCH` and recursive-CTE `CYCLE`, the
   `INSERT/REPLACE ... SET` assignment form, MySQL `VALUES ROW()` / `TABLE`
   sources, the comma-separated multi-table list (the `JOIN` form covers it),
-  multi-target `DELETE t1,t2 FROM …`, `UPDATE/DELETE IGNORE`, and the heavier
-  `JSON_TABLE` column forms (`NESTED PATH`, `DEFAULT…ON EMPTY|ERROR`, `EXISTS
-  PATH`).
+  multi-target `DELETE t1,t2 FROM …`, and `UPDATE/DELETE IGNORE`.
 - **Excluded** (not query shape): `INTO OUTFILE/DUMPFILE/@var`, priority /
   optimizer / result hints (`LOW_PRIORITY`, `SQL_CALC_FOUND_ROWS`, …),
   `PROCEDURE`, `ROWS EXAMINED` / `WAIT n`, `FOR PORTION OF`, spatial / GIS,

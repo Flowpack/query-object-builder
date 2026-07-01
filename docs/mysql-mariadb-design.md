@@ -544,7 +544,7 @@ Anything omitted stays reachable via `Q::func(name, ...)`.
 | Encryption / compression (`AES_*`, `MD5`/`SHA*`, `COMPRESS`) | Excluded from default | security/config-sensitive; via `Q::func` |
 | Locking / information / replication / internal funcs | Excluded | connection/server state, not query shape |
 | XML (`ExtractValue`, `UpdateXML`) | Excluded | niche |
-| `JSON_TABLE` | Supported | FROM-clause table function on the `Q` facade (`Q::jsonTable(...)->column()/columnForOrdinality()`); `NESTED PATH` / `DEFAULT…ON EMPTY\|ERROR` / `EXISTS PATH` deferred |
+| `JSON_TABLE` | Supported | FROM-clause table function on the `Q` facade (`Q::jsonTable(doc, path)->columns(fn (JsonTableColumns) => …)`): value / `EXISTS PATH` / `FOR ORDINALITY` columns, `ON EMPTY` / `ON ERROR`, and recursive `NESTED PATH` |
 | `MEMBER OF` operator | Supported | `ExpBase::memberOf()` → `value MEMBER OF (json_array)` |
 | MySQL-only `REGEXP_LIKE`/`GROUPING`/`ANY_VALUE`/`JSON_SCHEMA*`/`JSON_STORAGE*`/`JSON_PRETTY`/`RANDOM_BYTES` | Supported (MySQL facade only) | gated; absent on MariaDB |
 | MariaDB-only `JSON_QUERY`/`JSON_DETAILED`/`JSON_EXISTS`/`MEDIAN`/Oracle-compat (`TO_CHAR`/`ADD_MONTHS`/`MONTHS_BETWEEN`/`CHR`/`OCT`) | Supported (MariaDB facade only) | gated; absent on MySQL |

@@ -6,8 +6,9 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
  * Builds a `JSON_TABLE(doc, 'path' COLUMNS (...))` table function for the FROM
- * clause, expanding a JSON document into rows. Give it an alias with the from
- * item's `as()` (`->from(Q::jsonTable(...))->as('jt')`).
+ * clause, expanding a JSON document into rows. Define the columns with
+ * {@see columns()} and give it an alias via the from item's `as()`
+ * (`->from(Q::jsonTable(...))->as('jt')`).
  *
  * It is a {@see FromExp}, not a general expression: `JSON_TABLE` is only valid in a
  * FROM clause.
@@ -16,30 +17,22 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  */
 final class JsonTableBuilder implements FromExp
 {
-    /**
-     * @param list<JsonTableColumn> $columns
-     */
     public function __construct(
         private readonly Exp $doc,
         private readonly string $path,
-        private readonly array $columns = [],
+        private readonly JsonTableColumns $columns = new JsonTableColumns(),
     ) {
     }
 
     /**
-     * Add a column extracted at the given JSON path (`name type PATH 'path'`).
+     * Define the column list. The closure receives a {@see JsonTableColumns} builder
+     * and returns it configured.
+     *
+     * @param \Closure(JsonTableColumns): JsonTableColumns $build
      */
-    public function column(string $name, string $type, string $path): self
+    public function columns(\Closure $build): self
     {
-        return new self($this->doc, $this->path, [...$this->columns, JsonTableColumn::path($name, $type, $path)]);
-    }
-
-    /**
-     * Add a 1-based row counter column (`name FOR ORDINALITY`).
-     */
-    public function columnForOrdinality(string $name): self
-    {
-        return new self($this->doc, $this->path, [...$this->columns, JsonTableColumn::ordinality($name)]);
+        return new self($this->doc, $this->path, $build(new JsonTableColumns()));
     }
 
     public function writeSql(SqlBuilder $sb): void
@@ -50,12 +43,7 @@ final class JsonTableBuilder implements FromExp
         (new StringLiteral($this->path))->writeSql($sb);
 
         $sb->writeString(' COLUMNS (');
-        foreach ($this->columns as $i => $column) {
-            if ($i > 0) {
-                $sb->writeString(',');
-            }
-            $column->writeSql($sb);
-        }
+        $this->columns->writeColumns($sb);
         $sb->writeString('))');
     }
 }
