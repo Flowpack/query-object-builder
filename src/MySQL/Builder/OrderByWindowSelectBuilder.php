@@ -13,12 +13,12 @@ final class OrderByWindowSelectBuilder extends OrderBySelectBuilder
 {
     use WindowDefining;
 
-    public function asc(): self
+    public function asc(): static
     {
         return $this->rebuildLastWindowOrderBy(SortOrder::Asc);
     }
 
-    public function desc(): self
+    public function desc(): static
     {
         return $this->rebuildLastWindowOrderBy(SortOrder::Desc);
     }

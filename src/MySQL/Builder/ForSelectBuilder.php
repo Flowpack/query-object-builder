@@ -11,36 +11,13 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  */
 final class ForSelectBuilder extends SelectBuilder
 {
+    use SetsLockWaitPolicy;
+
     /**
      * Restrict the lock to the given tables (`OF table [, ...]`).
      */
-    public function of(string ...$tables): self
+    public function of(string ...$tables): static
     {
         return $this->deriveLocking(ofTables: array_values($tables));
-    }
-
-    public function nowait(): self
-    {
-        return $this->deriveLocking(waitPolicy: 'NOWAIT');
-    }
-
-    public function skipLocked(): self
-    {
-        return $this->deriveLocking(waitPolicy: 'SKIP LOCKED');
-    }
-
-    /**
-     * @param list<string>|null $ofTables
-     */
-    private function deriveLocking(?array $ofTables = null, ?string $waitPolicy = null): self
-    {
-        $lc = $this->parts->lockingClause;
-        assert($lc !== null);
-
-        return $this->derive(self::class, lockingClause: new LockingClause(
-            $lc->clause,
-            $ofTables ?? $lc->ofTables,
-            $waitPolicy ?? $lc->waitPolicy,
-        ));
     }
 }

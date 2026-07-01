@@ -17,7 +17,7 @@ final class Combination
         public readonly SelectQueryParts $parts,
         public readonly CombinationType $type,
         public readonly bool $all = false,
-        public readonly ?SelectBuilder $query = null,
+        public readonly ?AbstractSelectBuilder $query = null,
     ) {
     }
 }
