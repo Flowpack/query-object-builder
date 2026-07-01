@@ -10,8 +10,8 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 /**
  * Facade for MySQL SQL function expressions, accessed as `Q\Func`.
  *
- * The dialect-agnostic function set lives in {@see SharedFunctions}; this facade
- * adds MySQL-only functions (absent on MariaDB).
+ * The dialect-agnostic function set lives in the shared {@see SharedFunctions} trait;
+ * this facade adds functions specific to MySQL.
  */
 final class Func
 {

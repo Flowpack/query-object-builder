@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * Shared foundation of the INSERT builder for the MySQL family: state, the single
+ * Shared foundation of the INSERT builder: state, the single
  * {@see derive()} assembly point, the shared row-source methods, and the rendering.
  *
  * The proposed-row alias that precedes `ON DUPLICATE KEY UPDATE` is a dialect

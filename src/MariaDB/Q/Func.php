@@ -12,8 +12,8 @@ use Flowpack\QueryObjectBuilder\MySQL\Q\SharedFunctions;
 /**
  * Facade for MariaDB SQL function expressions, accessed as `Q\Func`.
  *
- * The dialect-agnostic function set lives in {@see SharedFunctions} (shared with the
- * MySQL facade); this facade adds MariaDB-only functions (absent on MySQL).
+ * The dialect-agnostic function set lives in the shared {@see SharedFunctions} trait;
+ * this facade adds functions specific to MariaDB.
  */
 final class Func
 {

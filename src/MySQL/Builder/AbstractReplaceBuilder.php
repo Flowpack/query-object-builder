@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * Shared foundation of the REPLACE builder for the MySQL family: like INSERT, but
+ * Shared foundation of the REPLACE builder: like INSERT, but
  * an existing row with the same primary or unique key is deleted before the new
  * row is inserted. There is no `ON DUPLICATE KEY UPDATE`. `RETURNING` is available
  * only on the dialect that exposes {@see returning()}; the field is carried here so

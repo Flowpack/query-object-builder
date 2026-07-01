@@ -20,8 +20,8 @@ use Flowpack\QueryObjectBuilder\MySQL\BuildsExpressions;
 /**
  * Entry point (facade) for building MariaDB queries.
  *
- * The dialect-agnostic expression surface lives in {@see BuildsExpressions} (shared
- * with the MySQL facade); this facade adds MariaDB's statement entry points.
+ * The dialect-agnostic expression surface lives in the shared {@see BuildsExpressions}
+ * trait; this facade adds MariaDB's statement entry points.
  */
 final class Q
 {

@@ -14,10 +14,9 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\LockingClause;
 /**
  * Builds a MariaDB SELECT query.
  *
- * Shares state, rendering and clause logic with the MySQL family via
- * {@see AbstractSelectBuilder}; this concrete builder adds MariaDB's public
- * transition methods and renders the shared lock as `LOCK IN SHARE MODE`. It has
- * no `LATERAL` from/join family (unsupported by MariaDB).
+ * The shared state, rendering and clause logic live in {@see AbstractSelectBuilder};
+ * this concrete builder adds MariaDB's public transition methods and renders the
+ * shared lock as `LOCK IN SHARE MODE`. There is no `LATERAL` from/join family.
  */
 class SelectBuilder extends AbstractSelectBuilder
 {

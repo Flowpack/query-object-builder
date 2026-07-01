@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * Shared foundation of the SELECT builder ladder for the MySQL family.
+ * Shared foundation of the SELECT builder ladder.
  *
  * Holds the immutable state, the single {@see derive()} assembly point, the
  * rendering, and protected helpers that carry the clause logic. Each dialect's

@@ -7,7 +7,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 /**
  * The lock wait-policy refinements (`NOWAIT` / `SKIP LOCKED`) shared by both
  * dialects' `ForSelectBuilder`. Reconstructing the {@see LockingClause} happens
- * here in {@see deriveLocking()} alone, which the MySQL-only `of()` also uses.
+ * here in {@see deriveLocking()} alone, which the `of()` refinement also uses.
  *
  * @internal
  * @phpstan-require-extends AbstractSelectBuilder

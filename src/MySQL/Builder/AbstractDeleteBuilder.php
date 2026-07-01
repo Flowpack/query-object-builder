@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * Shared foundation of the DELETE builder for the MySQL family: state, the single
+ * Shared foundation of the DELETE builder: state, the single
  * {@see derive()} assembly point, the clause helpers and the rendering.
  *
  * A single-table delete renders `DELETE FROM tbl ...` and may carry `ORDER BY`,
