@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilderException;
 use Flowpack\QueryObjectBuilder\MySQL\Q;
 
 describe('MySQL expressions', function () {
@@ -60,6 +61,13 @@ describe('MySQL expressions', function () {
     it('renders unary negation, keeping precedence', function () {
         expect(Q::neg(Q::n('a')))->toRenderSql('- a');
         expect(Q::neg(Q::n('a'))->plus(Q::int(1)))->toRenderSql('- a + 1');
+    });
+
+    it('parenthesizes the right operand by precedence', function () {
+        // The right operand binds looser, so it is parenthesized.
+        expect(Q::n('a')->mult(Q::n('b')->plus(Q::n('c'))))->toRenderSql('a * (b + c)');
+        // Same precedence but a different operator also forces parentheses.
+        expect(Q::n('a')->plus(Q::n('b')->minus(Q::n('c'))))->toRenderSql('a + (b - c)');
     });
 
     it('renders JSON path extraction operators', function () {
@@ -127,5 +135,21 @@ describe('MySQL expressions', function () {
         )->toRenderSql('id = ANY (SELECT user_id FROM orders)');
 
         expect(Q::n('x')->gt(Q::all(Q::n('vals'))))->toRenderSql('x > ALL (vals)');
+    });
+
+    it('rejects an invalid identifier, unless validation is disabled', function () {
+        expect(static fn () => Q::build(Q::n('foo bar'))->toSql())
+            ->toThrow(QueryBuilderException::class, 'identifier: invalid: foo bar');
+
+        [$sql] = Q::build(Q::n('foo bar'))->withoutValidation()->toSql();
+        expect($sql)->toBe('foo bar');
+    });
+
+    it('rejects an invalid cast type, unless validation is disabled', function () {
+        expect(static fn () => Q::build(Q::cast(Q::n('a'), 'NONESUCH'))->toSql())
+            ->toThrow(QueryBuilderException::class, 'type: invalid: NONESUCH');
+
+        [$sql] = Q::build(Q::cast(Q::n('a'), 'NONESUCH'))->withoutValidation()->toSql();
+        expect($sql)->toBe('CAST(a AS NONESUCH)');
     });
 });

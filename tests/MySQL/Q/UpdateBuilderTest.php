@@ -41,6 +41,24 @@ describe('MySQL UPDATE', function () {
         )->toRenderSql('UPDATE t SET id = id + 1 ORDER BY id DESC LIMIT 10');
     });
 
+    it('orders a single-table update ascending', function () {
+        expect(
+            Q::update(Q::n('t'))
+                ->set('a', Q::int(1))
+                ->orderBy(Q::n('id'))->asc()
+                ->limit(Q::int(10)),
+        )->toRenderSql('UPDATE t SET a = 1 ORDER BY id ASC LIMIT 10');
+    });
+
+    it('orders a single-table update by multiple columns', function () {
+        expect(
+            Q::update(Q::n('t'))
+                ->set('a', Q::int(1))
+                ->orderBy(Q::n('x'))->orderBy(Q::n('y'))->desc()
+                ->limit(Q::int(10)),
+        )->toRenderSql('UPDATE t SET a = 1 ORDER BY x,y DESC LIMIT 10');
+    });
+
     it('renders a multi-table update with a LEFT JOIN', function () {
         expect(
             Q::update(Q::n('t1'))
@@ -58,6 +76,28 @@ describe('MySQL UPDATE', function () {
                 ->join(Q::n('month'))->on(Q::n('items.id')->eq(Q::n('month.id')))
                 ->set('items.price', Q::n('month.price')),
         )->toRenderSql('UPDATE items JOIN month ON items.id = month.id SET items.price = month.price');
+    });
+
+    it('renders a multi-table update with RIGHT and CROSS JOIN', function () {
+        expect(
+            Q::update(Q::n('t1'))
+                ->rightJoin(Q::n('t2'))->on(Q::n('t1.id')->eq(Q::n('t2.id')))
+                ->set('t1.a', Q::n('t2.a')),
+        )->toRenderSql('UPDATE t1 RIGHT JOIN t2 ON t1.id = t2.id SET t1.a = t2.a');
+
+        expect(
+            Q::update(Q::n('t1'))
+                ->crossJoin(Q::n('t2'))
+                ->set('t1.a', Q::int(1)),
+        )->toRenderSql('UPDATE t1 CROSS JOIN t2 SET t1.a = 1');
+    });
+
+    it('renders a multi-table update with an aliased join and USING', function () {
+        expect(
+            Q::update(Q::n('t1'))
+                ->join(Q::n('t2'))->as('b')->using('id')
+                ->set('t1.a', Q::n('b.a')),
+        )->toRenderSql('UPDATE t1 JOIN t2 AS b USING (id) SET t1.a = b.a');
     });
 
     it('rejects ORDER BY / LIMIT on a multi-table update', function () {

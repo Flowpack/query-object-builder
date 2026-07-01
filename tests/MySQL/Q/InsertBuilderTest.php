@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilderException;
 use Flowpack\QueryObjectBuilder\MySQL\Q;
 
 describe('MySQL INSERT', function () {
@@ -56,6 +57,19 @@ describe('MySQL INSERT', function () {
         expect(
             Q::insertInto(Q::n('t'))->defaultValues(),
         )->toRenderSql('INSERT INTO t () VALUES ()');
+    });
+
+    it('inserts values without column names', function () {
+        expect(
+            Q::insertInto(Q::n('t'))->values(Q::int(1), Q::int(2)),
+        )->toRenderSql('INSERT INTO t VALUES (1,2)');
+    });
+
+    it('rejects setting both values and a query', function () {
+        $q = Q::insertInto(Q::n('t'))->columnNames('a')->values(Q::int(1))->query(Q::select(Q::int(2)));
+
+        expect(static fn () => Q::build($q)->toSql())
+            ->toThrow(QueryBuilderException::class, 'insert: cannot set both values and query');
     });
 
     it('renders ON DUPLICATE KEY UPDATE with the AS new row alias', function () {

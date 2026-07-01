@@ -138,4 +138,30 @@ describe('WindowFuncBuilder', function () {
             null,
         );
     });
+
+    it('applies direction and nulls ordering to an inline window ORDER BY', function () {
+        expect(
+            Q::select(Q\Func::sum(Q::n('salary'))->over()->orderBy(Q::n('salary'))->asc()->nullsFirst())
+                ->from(Q::n('empsalary')),
+        )->toRenderSql('SELECT sum(salary) OVER (ORDER BY salary ASC NULLS FIRST) FROM empsalary', null);
+
+        expect(
+            Q::select(Q\Func::sum(Q::n('salary'))->over()->orderBy(Q::n('salary'))->nullsLast())
+                ->from(Q::n('empsalary')),
+        )->toRenderSql('SELECT sum(salary) OVER (ORDER BY salary NULLS LAST) FROM empsalary', null);
+    });
+
+    it('applies direction and nulls ordering to a named-window ORDER BY', function () {
+        expect(
+            Q::select(Q\Func::sum(Q::n('salary'))->over('w'))
+                ->from(Q::n('empsalary'))
+                ->window('w')->as()->orderBy(Q::n('salary'))->asc()->nullsLast(),
+        )->toRenderSql('SELECT sum(salary) OVER w FROM empsalary WINDOW w AS (ORDER BY salary ASC NULLS LAST)', null);
+
+        expect(
+            Q::select(Q\Func::sum(Q::n('salary'))->over('w'))
+                ->from(Q::n('empsalary'))
+                ->window('w')->as()->orderBy(Q::n('salary'))->nullsFirst(),
+        )->toRenderSql('SELECT sum(salary) OVER w FROM empsalary WINDOW w AS (ORDER BY salary NULLS FIRST)', null);
+    });
 });

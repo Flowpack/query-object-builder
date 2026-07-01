@@ -73,6 +73,7 @@ describe('AggregateExpressions', function () {
         'json_agg' => fn () => [Q\Func::jsonAgg(Q::n('title')), 'json_agg(title)'],
         'jsonb_agg' => fn () => [Q\Func::jsonbAgg(Q::n('title')), 'jsonb_agg(title)'],
         'json_object_agg' => fn () => [Q\Func::jsonObjectAgg(Q::n('title'), Q::n('price')), 'json_object_agg(title, price)'],
+        'jsonb_object_agg' => fn () => [Q\Func::jsonbObjectAgg(Q::n('title'), Q::n('price')), 'jsonb_object_agg(title, price)'],
         'string_agg' => fn () => [Q\Func::stringAgg(Q::n('title'), Q::string(','))->orderBy(Q::n('title'))->desc(), "string_agg(title, ',' ORDER BY title DESC)"],
         'max' => fn () => [Q\Func::max(Q::n('price')), 'max(price)'],
         'min' => fn () => [Q\Func::min(Q::n('price')), 'min(price)'],

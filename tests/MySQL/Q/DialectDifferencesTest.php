@@ -140,6 +140,20 @@ describe('B1 RETURNING (MariaDB only)', function () {
         expect($q)->toRenderSql('REPLACE INTO t (a) VALUES (?) RETURNING id', [1], $mariaDb);
         expect($q)->toFailValidationFor($mysql, 'RETURNING requires MariaDB');
     });
+
+    it('aliases a returned expression via as()', function () use ($mariaDb) {
+        expect(
+            Q::insertInto(Q::n('t'))->columnNames('a')->values(Q::arg(1))->returning(Q::n('id'))->as('key'),
+        )->toRenderSql('INSERT INTO t (a) VALUES (?) RETURNING id AS key', [1], $mariaDb);
+
+        expect(
+            Q::deleteFrom(Q::n('t'))->where(Q::n('id')->eq(Q::arg(1)))->returning(Q::n('id'))->as('key'),
+        )->toRenderSql('DELETE FROM t WHERE id = ? RETURNING id AS key', [1], $mariaDb);
+
+        expect(
+            Q::replaceInto(Q::n('t'))->columnNames('a')->values(Q::arg(1))->returning(Q::n('id'))->as('key'),
+        )->toRenderSql('REPLACE INTO t (a) VALUES (?) RETURNING id AS key', [1], $mariaDb);
+    });
 });
 
 describe('B2 LATERAL (MySQL only)', function () {
@@ -209,6 +223,24 @@ describe('B4 distribution aggregates (MariaDB only)', function () {
             Target::mariaDb(),
         );
         expect($q)->toFailValidationFor(Target::mysql(), 'PERCENTILE_CONT requires MariaDB');
+    });
+
+    it('renders a bare ORDER BY (without WITHIN GROUP) with multiple keys', function () {
+        // The builder also supports the direct NAME(args ORDER BY ...) form.
+        $q = Q\Func::percentileCont(Q::float(0.5))->orderBy(Q::n('a'))->orderBy(Q::n('b'));
+
+        expect($q)->toRenderSql('PERCENTILE_CONT(0.5 ORDER BY a,b)', null, Target::mariaDb());
+    });
+
+    it('renders PERCENTILE_CONT with an ascending WITHIN GROUP order', function () {
+        $q = Q\Func::percentileCont(Q::float(0.5))->withinGroup()->orderBy(Q::n('salary'))->asc()
+            ->over()->partitionBy(Q::n('dept'));
+
+        expect($q)->toRenderSql(
+            'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary ASC) OVER (PARTITION BY dept)',
+            null,
+            Target::mariaDb(),
+        );
     });
 
     it('renders PERCENTILE_DISC with a descending WITHIN GROUP order', function () {

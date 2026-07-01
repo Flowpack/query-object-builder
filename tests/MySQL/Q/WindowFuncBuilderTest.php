@@ -174,6 +174,18 @@ describe('MySQL window functions', function () {
             );
         });
 
+        it('renders ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING', function () {
+            expect(
+                Q::select(
+                    Q\Func::sum(Q::n('x'))->over()
+                        ->orderBy(Q::n('x'))
+                        ->rows(Q::unboundedPreceding(), Q::unboundedFollowing()),
+                )->from(Q::n('t')),
+            )->toRenderSql(
+                'SELECT SUM(x) OVER (ORDER BY x ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) FROM t',
+            );
+        });
+
         it('renders a frame inside a named window', function () {
             expect(
                 Q::select(
@@ -184,6 +196,35 @@ describe('MySQL window functions', function () {
             )->toRenderSql(
                 'SELECT SUM(val) OVER w FROM observations WINDOW w AS (ORDER BY time ROWS UNBOUNDED PRECEDING)',
             );
+        });
+
+        it('renders a RANGE frame inside a named window', function () {
+            expect(
+                Q::select(
+                    Q\Func::sum(Q::n('val'))->over('w'),
+                )
+                    ->from(Q::n('t'))
+                    ->window('w')->as()->orderBy(Q::n('time'))->range(Q::unboundedPreceding(), Q::currentRow()),
+            )->toRenderSql(
+                'SELECT SUM(val) OVER w FROM t WINDOW w AS (ORDER BY time RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+    });
+
+    describe('window order by', function () {
+        it('renders an explicit direction on an inline window ORDER BY', function () {
+            expect(Q\Func::rank()->over()->orderBy(Q::n('x'))->asc())
+                ->toRenderSql('RANK() OVER (ORDER BY x ASC)');
+            expect(Q\Func::rank()->over()->orderBy(Q::n('x'))->desc())
+                ->toRenderSql('RANK() OVER (ORDER BY x DESC)');
+        });
+
+        it('renders an explicit direction on a named-window ORDER BY', function () {
+            expect(
+                Q::select(Q\Func::rowNumber()->over('w'))
+                    ->from(Q::n('t'))
+                    ->window('w')->as()->orderBy(Q::n('val'))->asc(),
+            )->toRenderSql('SELECT ROW_NUMBER() OVER w FROM t WINDOW w AS (ORDER BY val ASC)');
         });
     });
 
@@ -223,10 +264,11 @@ describe('MySQL window functions', function () {
             expect(
                 Q::select(
                     Q\Func::lag(Q::n('val'))->over()->orderBy(Q::n('t')),
+                    Q\Func::lag(Q::n('val'), Q::int(1), Q::int(0))->over()->orderBy(Q::n('t')),
                     Q\Func::lead(Q::n('val'), Q::int(1), Q::int(0))->over()->orderBy(Q::n('t')),
                 )->from(Q::n('t')),
             )->toRenderSql(
-                'SELECT LAG(val) OVER (ORDER BY t), LEAD(val, 1, 0) OVER (ORDER BY t) FROM t',
+                'SELECT LAG(val) OVER (ORDER BY t), LAG(val, 1, 0) OVER (ORDER BY t), LEAD(val, 1, 0) OVER (ORDER BY t) FROM t',
             );
         });
 

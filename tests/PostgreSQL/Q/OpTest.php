@@ -95,6 +95,31 @@ describe('Op', function () {
         });
     });
 
+    describe('arithmetic operators', function () {
+        it('divide, mod and pow', function () {
+            expect(Q::n('a')->divide(Q::n('b')))->toRenderSql('a / b', null);
+            expect(Q::n('a')->mod(Q::n('b')))->toRenderSql('a % b', null);
+            expect(Q::n('a')->pow(Q::n('b')))->toRenderSql('a ^ b', null);
+        });
+
+        it('negates', function () {
+            expect(Q::neg(Q::n('a')))->toRenderSql('- a', null);
+        });
+    });
+
+    describe('json operators', function () {
+        it('extracts a json value and path', function () {
+            expect(Q::n('doc')->jsonExtract(Q::string('a')))->toRenderSql("doc -> 'a'", null);
+            expect(Q::n('doc')->jsonExtractPath(Q::arg('{a,b}')))->toRenderSql('doc #> $1', ['{a,b}']);
+            expect(Q::n('doc')->jsonExtractPathText(Q::arg('{a,b}')))->toRenderSql('doc #>> $1', ['{a,b}']);
+        });
+
+        it('tests containment', function () {
+            expect(Q::n('doc')->contains(Q::arg('{"a":1}')))->toRenderSql('doc @> $1', ['{"a":1}']);
+            expect(Q::n('doc')->containedBy(Q::arg('{"a":1}')))->toRenderSql('doc <@ $1', ['{"a":1}']);
+        });
+    });
+
     describe('comparison operators', function () {
         it('is distinct from', function () {
             expect(Q::n('a')->plus(Q::int(1))->isDistinctFrom(Q::n('b')))->toRenderSql('a + 1 IS DISTINCT FROM b', null);
@@ -102,6 +127,11 @@ describe('Op', function () {
 
         it('is not distinct from', function () {
             expect(Q::not(Q::n('a'))->isNotDistinctFrom(Q::n('b')))->toRenderSql('(NOT a) IS NOT DISTINCT FROM b', null);
+        });
+
+        it('lte and gte', function () {
+            expect(Q::n('a')->lte(Q::int(1)))->toRenderSql('a <= 1', null);
+            expect(Q::n('a')->gte(Q::int(1)))->toRenderSql('a >= 1', null);
         });
     });
 });

@@ -204,3 +204,21 @@ vendor/bin/phpstan analyse
 
 Both must pass for any change. (PHPStan config — `level: max`, paths, and the
 Pest extension — lives in `phpstan.neon`.)
+
+### Coverage
+
+`XDEBUG_MODE=coverage vendor/bin/pest --coverage` (Xdebug is the driver; add
+`--coverage-clover=<file>` for a per-line report). The suite covers ~98%; aim to
+keep every builder class and public method exercised. Two testable patterns worth
+knowing: advisory value checks (invalid `IdentExp`/`TypeExp`, empty `CaseExp`,
+`DISTINCT` on an aggregate that rejects it) throw when built **and** still render
+under `Q::build($q)->withoutValidation()` — assert both; mutually-exclusive builder
+state (`values`+`query`, `ON CONFLICT` constraint+targets) always throws, even
+without validation.
+
+A handful of lines are **intentionally uncovered — don't chase them**: the private
+constructors of the static facades (`Q`, `Q\Func`, `Literals`, `Precedence`,
+`Keywords`), the `writeSql()` one-line delegators on the statement builders (they
+are `InnerSqlWriter`s, so `QueryBuilder::toSql()` only ever calls `innerWriteSql()`),
+and value-object guards with no fluent path to reach them (e.g. a `FromItem` that is
+both `LATERAL` and `ONLY`).

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilderException;
 use Flowpack\QueryObjectBuilder\MySQL\Q;
 
 describe('MySQL CASE', function () {
@@ -22,5 +23,16 @@ describe('MySQL CASE', function () {
             ->end();
 
         expect($case)->toRenderSql("CASE status WHEN 1 THEN 'active' ELSE 'inactive' END");
+    });
+
+    it('rejects a CASE with no conditions, unless validation is disabled', function () {
+        $case = Q::case()->end();
+
+        expect(static fn () => Q::build($case)->toSql())
+            ->toThrow(QueryBuilderException::class, 'case: no conditions given');
+
+        // The check is advisory: withoutValidation() still emits the (degenerate) SQL.
+        [$sql] = Q::build($case)->withoutValidation()->toSql();
+        expect($sql)->toBe('CASE END');
     });
 });

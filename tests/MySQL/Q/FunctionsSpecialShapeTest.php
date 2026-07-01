@@ -18,6 +18,12 @@ describe('MySQL special-shape functions', function () {
                     ->separator(', '),
             )->toRenderSql("GROUP_CONCAT(DISTINCT name ORDER BY name DESC SEPARATOR ', ')");
         });
+
+        it('orders ascending', function () {
+            expect(
+                Q\Func::groupConcat(Q::n('name'))->orderBy(Q::n('name'))->asc(),
+            )->toRenderSql('GROUP_CONCAT(name ORDER BY name ASC)');
+        });
     });
 
     describe('EXTRACT', function () {
