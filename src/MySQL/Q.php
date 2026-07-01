@@ -22,6 +22,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\IdentExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\InsertBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntervalExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\IntLiteral;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\JsonTableBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Precedence;
@@ -107,6 +108,17 @@ final class Q
     public static function withRecursive(string $queryName): WithWithBuilder
     {
         return new WithWithBuilder([new WithQueryItem(true, $queryName)]);
+    }
+
+    /**
+     * A `JSON_TABLE(doc, 'path' COLUMNS (...))` table function for the FROM clause.
+     * Add columns via {@see JsonTableBuilder::column()} /
+     * {@see JsonTableBuilder::columnForOrdinality()} and alias it with the from
+     * item's `as()`.
+     */
+    public static function jsonTable(Exp $doc, string $path): JsonTableBuilder
+    {
+        return new JsonTableBuilder($doc, $path);
     }
 
     // Subquery predicates

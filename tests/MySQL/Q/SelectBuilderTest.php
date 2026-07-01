@@ -102,4 +102,19 @@ describe('MySQL SELECT', function () {
                 ->joinLateral(Q::select(Q::n('*'))->from(Q::n('orders')))->as('o')->on(Q::n('o.user_id')->eq(Q::n('u.id')))
         )->toRenderSql('SELECT * FROM users AS u JOIN LATERAL (SELECT * FROM orders) AS o ON o.user_id = u.id');
     });
+
+    it('renders a JSON_TABLE derived table', function () {
+        expect(
+            Q::select(Q::n('jt.id'), Q::n('jt.name'))
+                ->from(Q::n('t'))
+                ->from(
+                    Q::jsonTable(Q::n('t.doc'), '$[*]')
+                        ->column('id', 'INT', '$.id')
+                        ->column('name', 'VARCHAR(100)', '$.name')
+                        ->columnForOrdinality('rownum'),
+                )->as('jt')
+        )->toRenderSql(
+            "SELECT jt.id,jt.name FROM t,JSON_TABLE(t.doc, '$[*]' COLUMNS (id INT PATH '$.id',name VARCHAR(100) PATH '$.name',rownum FOR ORDINALITY)) AS jt",
+        );
+    });
 });
