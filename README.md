@@ -56,6 +56,15 @@ var_dump($args);       // [true]
 PostgreSQL numbered placeholders (`$1`, `$2`, …) and the positional argument
 list to bind. See [Executing queries](#executing-queries) for how to run it.
 
+## Dialects
+
+This README covers the PostgreSQL builder (`Flowpack\QueryObjectBuilder\PostgreSQL\Q`).
+The package also ships **MySQL 8.4** and **MariaDB 11.x** facades
+(`MySQL\Q` and `MariaDB\Q`) with the same fluent, immutable, type-safe design,
+each modelling its own dialect (backtick identifiers, `?` placeholders, native
+operators and functions). See **[MySQL & MariaDB](docs/mysql-mariadb.md)** for
+usage, the per-engine differences, and the coverage/limitations.
+
 ## Core concepts
 
 ### The `Q` facade
