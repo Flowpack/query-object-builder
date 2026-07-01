@@ -10,6 +10,8 @@ describe('MySQL expressions', function () {
         expect(Q::n('users'))->toRenderSql('users');
         expect(Q::n('order'))->toRenderSql('`order`');
         expect(Q::n('u.name'))->toRenderSql('u.name');
+        // A part that is already backtick-quoted is kept as-is when splitting the path.
+        expect(Q::n('`order`.id'))->toRenderSql('`order`.id');
     });
 
     it('quotes string literals with doubled quotes and escaped backslashes', function () {

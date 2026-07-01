@@ -151,6 +151,18 @@ describe('WindowFuncBuilder', function () {
         )->toRenderSql('SELECT sum(salary) OVER (ORDER BY salary NULLS LAST) FROM empsalary', null);
     });
 
+    it('defines a named window that refines another, partitioned by multiple keys', function () {
+        $b = Q::select(Q\Func::sum(Q::n('salary'))->over('w2'))
+            ->from(Q::n('empsalary'))
+            ->window('w1')->as()->partitionBy(Q::n('depname'), Q::n('region'))
+            ->window('w2')->as('w1')->orderBy(Q::n('salary'));
+
+        expect($b)->toRenderSql(
+            'SELECT sum(salary) OVER w2 FROM empsalary WINDOW w1 AS (PARTITION BY depname,region),w2 AS (w1 ORDER BY salary)',
+            null,
+        );
+    });
+
     it('applies direction and nulls ordering to a named-window ORDER BY', function () {
         expect(
             Q::select(Q\Func::sum(Q::n('salary'))->over('w'))

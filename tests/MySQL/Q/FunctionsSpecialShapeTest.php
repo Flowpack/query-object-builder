@@ -24,6 +24,12 @@ describe('MySQL special-shape functions', function () {
                 Q\Func::groupConcat(Q::n('name'))->orderBy(Q::n('name'))->asc(),
             )->toRenderSql('GROUP_CONCAT(name ORDER BY name ASC)');
         });
+
+        it('concatenates multiple expressions ordered by multiple keys', function () {
+            expect(
+                Q\Func::groupConcat(Q::n('a'), Q::n('b'))->orderBy(Q::n('a'))->orderBy(Q::n('b')),
+            )->toRenderSql('GROUP_CONCAT(a,b ORDER BY a,b)');
+        });
     });
 
     describe('EXTRACT', function () {
