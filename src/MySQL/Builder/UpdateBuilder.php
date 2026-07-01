@@ -191,6 +191,7 @@ class UpdateBuilder implements InnerSqlWriter
         }
 
         if ($this->withQueries !== []) {
+            $sb->requireAnyDialect('WITH before UPDATE', new Requirement(Dialect::Mysql), new Requirement(Dialect::MariaDb, gteVersion: '12.3'));
             $this->writeWithQueries($sb, $this->withQueries);
         }
 

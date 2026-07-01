@@ -9,7 +9,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * aliases. Shared by both dialects' `FromSelectBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait AliasesLastFromItem
 {

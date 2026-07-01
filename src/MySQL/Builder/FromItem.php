@@ -26,6 +26,7 @@ final class FromItem
     public function writeSql(SqlBuilder $sb): void
     {
         if ($this->lateral) {
+            $sb->requireDialect(Dialect::Mysql, 'LATERAL');
             $sb->writeString('LATERAL ');
         }
 

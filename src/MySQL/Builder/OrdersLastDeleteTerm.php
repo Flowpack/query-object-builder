@@ -9,7 +9,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * single-table DELETE. Shared by both dialects' `OrderByDeleteBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractDeleteBuilder
+ * @phpstan-require-extends DeleteBuilder
  */
 trait OrdersLastDeleteTerm
 {

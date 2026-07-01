@@ -10,7 +10,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * `CombinationBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait RefinesCombination
 {
@@ -19,7 +19,7 @@ trait RefinesCombination
         return $this->derive(static::class, combinations: $this->rebuildLastCombination(all: true));
     }
 
-    public function query(AbstractSelectBuilder $query): static
+    public function query(SelectBuilder $query): static
     {
         return $this->derive(static::class, combinations: $this->rebuildLastCombination(query: $query));
     }
@@ -30,7 +30,7 @@ trait RefinesCombination
      *
      * @return list<Combination>
      */
-    private function rebuildLastCombination(?bool $all = null, ?AbstractSelectBuilder $query = null): array
+    private function rebuildLastCombination(?bool $all = null, ?SelectBuilder $query = null): array
     {
         $combinations = $this->combinations;
         $lastIdx = array_key_last($combinations);

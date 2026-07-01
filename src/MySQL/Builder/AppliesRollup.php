@@ -9,7 +9,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * dialects' `GroupBySelectBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait AppliesRollup
 {

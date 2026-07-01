@@ -10,7 +10,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * `SelectSelectBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait AliasesLastOutput
 {

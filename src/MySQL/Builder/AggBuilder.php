@@ -12,17 +12,19 @@ class AggBuilder extends ExpBase
 {
     /**
      * @param list<Exp> $exps
+     * @param Requirement|null $requires the dialect this aggregate is available on, if it is dialect-specific
      */
     public function __construct(
         protected readonly string $name,
         protected readonly array $exps,
         protected readonly bool $distinct = false,
+        protected readonly ?Requirement $requires = null,
     ) {
     }
 
     public function distinct(): self
     {
-        return new self($this->name, $this->exps, true);
+        return new self($this->name, $this->exps, true, $this->requires);
     }
 
     /**
@@ -38,6 +40,10 @@ class AggBuilder extends ExpBase
 
     public function writeSql(SqlBuilder $sb): void
     {
+        if ($this->requires !== null) {
+            $sb->requireAnyDialect($this->name, $this->requires);
+        }
+
         $sb->writeString($this->name . '(' . ($this->distinct ? 'DISTINCT ' : ''));
         foreach ($this->exps as $i => $exp) {
             if ($i > 0) {

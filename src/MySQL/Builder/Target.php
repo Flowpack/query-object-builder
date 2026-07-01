@@ -28,15 +28,10 @@ final class Target
     }
 
     /**
-     * Whether this target is the given dialect and (if a minimum is given and the
-     * target carries a version) at least that version.
+     * A human-readable description for error messages, e.g. `MySQL` or `MariaDB 11.4`.
      */
-    public function satisfies(Dialect $dialect, ?string $minVersion = null): bool
+    public function describe(): string
     {
-        if ($this->dialect !== $dialect) {
-            return false;
-        }
-
-        return $minVersion === null || $this->version === null || version_compare($this->version, $minVersion, '>=');
+        return $this->version === null ? $this->dialect->label() : $this->dialect->label() . ' ' . $this->version;
     }
 }

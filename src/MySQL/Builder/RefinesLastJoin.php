@@ -10,7 +10,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * Shared by both dialects' `JoinSelectBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait RefinesLastJoin
 {

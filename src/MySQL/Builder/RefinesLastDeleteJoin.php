@@ -9,7 +9,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * condition and `USING` columns. Shared by both dialects' `JoinDeleteBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractDeleteBuilder
+ * @phpstan-require-extends DeleteBuilder
  */
 trait RefinesLastDeleteJoin
 {

@@ -16,6 +16,7 @@ trait RendersReturning
      */
     protected function writeReturning(SqlBuilder $sb, array $returningItems): void
     {
+        $sb->requireDialect(Dialect::MariaDb, 'RETURNING');
         $sb->writeString(' RETURNING ');
         foreach ($returningItems as $i => $item) {
             if ($i > 0) {

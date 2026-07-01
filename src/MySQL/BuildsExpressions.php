@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Flowpack\QueryObjectBuilder\MySQL;
 
-use Flowpack\QueryObjectBuilder\MySQL\Builder\AbstractSelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Arg;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BindExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\BoolLiteral;
@@ -25,6 +24,7 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\Junction;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\NullLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Precedence;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\QueryBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\SelectBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SqlWriter;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\StringLiteral;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\SubqueryExp;
@@ -45,7 +45,7 @@ trait BuildsExpressions
     /**
      * An `EXISTS (subquery)` expression.
      */
-    public static function exists(AbstractSelectBuilder $subquery): ExistsExp
+    public static function exists(SelectBuilder $subquery): ExistsExp
     {
         return new ExistsExp($subquery);
     }
@@ -194,6 +194,16 @@ trait BuildsExpressions
     public static function func(string $name, Exp ...$args): FuncExp
     {
         return new FuncExp($name, array_values($args));
+    }
+
+    /**
+     * Reference the value proposed for `column` inside `ON DUPLICATE KEY UPDATE`,
+     * rendered as `VALUES(column)`. (With the `AS new` row alias, reference it as
+     * `Q::n('new.column')` instead.)
+     */
+    public static function values(string $column): FuncExp
+    {
+        return new FuncExp('VALUES', [IdentExp::n($column)]);
     }
 
     /**

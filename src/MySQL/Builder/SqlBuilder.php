@@ -51,23 +51,37 @@ final class SqlBuilder
     }
 
     /**
-     * Record that the construct being written requires the given dialect (and,
-     * optionally, a minimum version). When a validation target is set and does not
-     * satisfy the requirement, an error is added; otherwise this is a no-op.
+     * Record that the construct being written requires the given dialect, optionally
+     * within a half-open version window `[gteVersion, ltVersion)`. Sugar for the
+     * single-allowance case of {@see requireAnyDialect()}.
      */
-    public function requireDialect(Dialect $required, string $feature, ?string $minVersion = null): void
+    public function requireDialect(Dialect $required, string $feature, ?string $gteVersion = null, ?string $ltVersion = null): void
     {
-        if ($this->validationTarget === null || $this->validationTarget->satisfies($required, $minVersion)) {
+        $this->requireAnyDialect($feature, new Requirement($required, $gteVersion, $ltVersion));
+    }
+
+    /**
+     * Record that the construct being written is supported on any of the given
+     * requirements (dialect + optional version window). When a validation target is
+     * set and satisfies none of them, an error is added; otherwise this is a no-op.
+     */
+    public function requireAnyDialect(string $feature, Requirement ...$allowed): void
+    {
+        if ($this->validationTarget === null) {
             return;
         }
+        foreach ($allowed as $requirement) {
+            if ($requirement->satisfiedBy($this->validationTarget)) {
+                return;
+            }
+        }
 
-        $versionNote = $minVersion !== null ? ' ' . $minVersion . '+' : '';
+        $supported = implode(' or ', array_map(static fn (Requirement $r): string => $r->describe(), $allowed));
         $this->addError(new QueryBuilderException(sprintf(
-            '%s requires %s%s, but the query is validated against %s',
+            '%s requires %s, but the query is validated against %s',
             $feature,
-            $required->label(),
-            $versionNote,
-            $this->validationTarget->dialect->label(),
+            $supported,
+            $this->validationTarget->describe(),
         )));
     }
 

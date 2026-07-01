@@ -28,6 +28,7 @@ final class Join implements FromExp
     {
         $s = $this->joinType->value;
         if ($this->lateral) {
+            $sb->requireDialect(Dialect::Mysql, 'LATERAL');
             $s .= ' LATERAL';
         }
         $s .= ' ';

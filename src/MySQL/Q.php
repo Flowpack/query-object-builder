@@ -19,8 +19,8 @@ use Flowpack\QueryObjectBuilder\MySQL\Builder\WithWithBuilder;
  * Entry point (facade) for building MySQL queries.
  *
  * The dialect-agnostic expression surface lives in {@see BuildsExpressions}; this
- * facade adds MySQL's statement entry points (SELECT, INSERT with the `new.col`
- * upsert reference, REPLACE, UPDATE, DELETE and WITH).
+ * facade adds the statement entry points (SELECT, INSERT, REPLACE, UPDATE, DELETE
+ * and WITH).
  */
 final class Q
 {
@@ -44,15 +44,6 @@ final class Q
     public static function insertInto(IdentExp $tableName): InsertBuilder
     {
         return new InsertBuilder($tableName);
-    }
-
-    /**
-     * Reference the value of `column` from the row that would have been inserted,
-     * for use inside `ON DUPLICATE KEY UPDATE` (rendered as `new.column`).
-     */
-    public static function inserted(string $column): IdentExp
-    {
-        return IdentExp::n('new.' . $column);
     }
 
     /**

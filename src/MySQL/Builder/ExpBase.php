@@ -97,7 +97,7 @@ abstract class ExpBase implements Exp
      */
     public function jsonExtract(Exp $rgt): OpExp
     {
-        return $this->op('->', $rgt);
+        return new OpExp($this, '->', $rgt, requires: new Requirement(Dialect::Mysql));
     }
 
     /**
@@ -105,7 +105,7 @@ abstract class ExpBase implements Exp
      */
     public function jsonExtractText(Exp $rgt): OpExp
     {
-        return $this->op('->>', $rgt);
+        return new OpExp($this, '->>', $rgt, requires: new Requirement(Dialect::Mysql));
     }
 
     // Pattern matching

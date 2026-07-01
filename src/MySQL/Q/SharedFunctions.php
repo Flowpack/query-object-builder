@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Flowpack\QueryObjectBuilder\MySQL\Q;
 
 use Flowpack\QueryObjectBuilder\MySQL\Builder\AggBuilder;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\Dialect;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\ExtractExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\FuncExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\GroupConcatBuilder;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Keyword;
+use Flowpack\QueryObjectBuilder\MySQL\Builder\Requirement;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\TrimExp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\WindowFuncBuilder;
 
@@ -1013,6 +1015,23 @@ trait SharedFunctions
     private static function agg(string $name, Exp ...$args): AggBuilder
     {
         return new AggBuilder($name, array_values($args));
+    }
+
+    /**
+     * A function available only on the given dialect; validating against another
+     * target reports it as unsupported.
+     */
+    private static function gated(Dialect $dialect, string $name, Exp ...$args): FuncExp
+    {
+        return new FuncExp($name, array_values($args), new Requirement($dialect));
+    }
+
+    /**
+     * An aggregate available only on the given dialect.
+     */
+    private static function gatedAgg(Dialect $dialect, string $name, Exp ...$args): AggBuilder
+    {
+        return new AggBuilder($name, array_values($args), requires: new Requirement($dialect));
     }
 }
 

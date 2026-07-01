@@ -20,7 +20,7 @@ final class SubqueryExp implements Exp
     {
         $sb->writeString($this->op . ' ');
 
-        $isSelect = $this->exp instanceof AbstractSelectBuilder;
+        $isSelect = $this->exp instanceof SelectBuilder;
         if (!$isSelect) {
             $sb->writeString('(');
         }

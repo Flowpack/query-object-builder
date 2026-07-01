@@ -2,15 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Flowpack\QueryObjectBuilder\MariaDB\Builder;
-
-use Flowpack\QueryObjectBuilder\MySQL\Builder\ReturningItem;
+namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 
 /**
- * The DELETE builder state right after a RETURNING expression, where {@see as()}
+ * The REPLACE builder state right after a RETURNING expression, where {@see as()}
  * sets the output name of that last expression.
  */
-final class ReturningDeleteBuilder extends DeleteBuilder
+final class ReturningReplaceBuilder extends ReplaceBuilder
 {
     /**
      * Set the output name for the last RETURNING expression.

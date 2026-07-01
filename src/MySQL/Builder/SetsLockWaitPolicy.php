@@ -10,7 +10,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * here in {@see deriveLocking()} alone, which the `of()` refinement also uses.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait SetsLockWaitPolicy
 {
@@ -36,6 +36,7 @@ trait SetsLockWaitPolicy
             $lc->clause,
             $ofTables ?? $lc->ofTables,
             $waitPolicy ?? $lc->waitPolicy,
+            $lc->requires,
         ));
     }
 }

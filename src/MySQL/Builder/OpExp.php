@@ -17,6 +17,7 @@ final class OpExp extends ExpBase implements Precedencer
         private readonly string $op,
         private readonly Exp $rgt,
         private readonly bool $unspaced = false,
+        private readonly ?Requirement $requires = null,
     ) {
     }
 
@@ -27,6 +28,10 @@ final class OpExp extends ExpBase implements Precedencer
 
     public function writeSql(SqlBuilder $sb): void
     {
+        if ($this->requires !== null) {
+            $sb->requireAnyDialect('the ' . $this->op . ' operator', $this->requires);
+        }
+
         $lftNeedsParens = $this->lft instanceof Precedencer && $this->lft->precedence() < $this->precedence();
 
         if ($lftNeedsParens) {

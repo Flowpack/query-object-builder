@@ -9,7 +9,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
  * both dialects' `OrderBySelectBuilder`.
  *
  * @internal
- * @phpstan-require-extends AbstractSelectBuilder
+ * @phpstan-require-extends SelectBuilder
  */
 trait OrdersLastTerm
 {

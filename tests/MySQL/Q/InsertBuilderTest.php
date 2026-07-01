@@ -58,16 +58,29 @@ describe('MySQL INSERT', function () {
         )->toRenderSql('INSERT INTO t () VALUES ()');
     });
 
-    it('renders ON DUPLICATE KEY UPDATE referencing the inserted row', function () {
+    it('renders ON DUPLICATE KEY UPDATE with the AS new row alias', function () {
+        expect(
+            Q::insertInto(Q::n('t'))
+                ->columnNames('id', 'hits')
+                ->values(Q::arg(1), Q::arg(10))->as('new')
+                ->onDuplicateKeyUpdate()
+                ->set('hits', Q::n('new.hits'))
+                ->set('seen', Q::int(1)),
+        )->toRenderSql(
+            'INSERT INTO t (id,hits) VALUES (?,?) AS new ON DUPLICATE KEY UPDATE hits = new.hits,seen = 1',
+            [1, 10],
+        );
+    });
+
+    it('renders ON DUPLICATE KEY UPDATE with the portable VALUES() reference', function () {
         expect(
             Q::insertInto(Q::n('t'))
                 ->columnNames('id', 'hits')
                 ->values(Q::arg(1), Q::arg(10))
                 ->onDuplicateKeyUpdate()
-                ->set('hits', Q::inserted('hits'))
-                ->set('seen', Q::int(1)),
+                ->set('hits', Q::values('hits')),
         )->toRenderSql(
-            'INSERT INTO t (id,hits) VALUES (?,?) AS new ON DUPLICATE KEY UPDATE hits = new.hits,seen = 1',
+            'INSERT INTO t (id,hits) VALUES (?,?) ON DUPLICATE KEY UPDATE hits = VALUES(hits)',
             [1, 10],
         );
     });

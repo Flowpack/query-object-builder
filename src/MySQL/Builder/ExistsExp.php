@@ -10,7 +10,7 @@ namespace Flowpack\QueryObjectBuilder\MySQL\Builder;
 final class ExistsExp implements Exp
 {
     public function __construct(
-        private readonly AbstractSelectBuilder $subquery,
+        private readonly SelectBuilder $subquery,
     ) {
     }
 
