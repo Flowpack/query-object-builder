@@ -68,6 +68,12 @@ describe('MySQL expressions', function () {
         expect(Q::n('a')->notIn(Q::exps(Q::int(1), Q::int(2))))->toRenderSql('a NOT IN (1,2)');
     });
 
+    it('renders MEMBER OF with a parenthesized JSON array', function () {
+        expect(Q::arg('x')->memberOf(Q::n('tags')))->toRenderSql('? MEMBER OF (tags)', ['x']);
+        expect(Q::arg(1)->memberOf(Q::n('doc')->jsonExtract(Q::string('$.ids'))))
+            ->toRenderSql("? MEMBER OF (doc -> '$.ids')", [1]);
+    });
+
     it('renders REGEXP and LIKE', function () {
         expect(Q::n('a')->like(Q::string('%x%')))->toRenderSql("a LIKE '%x%'");
         expect(Q::n('a')->regexp(Q::string('^x')))->toRenderSql("a REGEXP '^x'");

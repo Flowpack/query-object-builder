@@ -191,6 +191,15 @@ abstract class ExpBase implements Exp
         return new InExp($this, 'NOT IN', $rgt);
     }
 
+    /**
+     * JSON array membership (`value MEMBER OF (json_array)`): whether this value is
+     * an element of the given JSON array.
+     */
+    public function memberOf(Exp $jsonArray): Exp
+    {
+        return new MemberOfExp($this, $jsonArray);
+    }
+
     public function isNull(): Exp
     {
         return new UnaryExp($this, Precedence::of('IS'), suffix: 'IS NULL');
