@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Flowpack\QueryObjectBuilder\MySQL\Builder\Exp;
 use Flowpack\QueryObjectBuilder\MySQL\Builder\Target;
 use Flowpack\QueryObjectBuilder\MySQL\Q;
 
@@ -200,15 +201,47 @@ describe('B4 distribution aggregates (MariaDB only)', function () {
 });
 
 describe('C dialect-only functions', function () {
-    it('reports MySQL-only functions against MariaDB', function () {
-        $q = Q\Func::regexpLike(Q::n('s'), Q::string('^a'));
-        expect($q)->toRenderSql("REGEXP_LIKE(s, '^a')", null, Target::mysql());
-        expect($q)->toFailValidationFor(Target::mariaDb(), 'REGEXP_LIKE requires MySQL');
-    });
+    // The pretty-print pair (jsonPretty / jsonDetailed) is covered in A4 and MEDIAN
+    // in B4; these datasets cover the rest of each engine's function set. Each
+    // renders and validates against its own engine, and is reported against the other.
 
-    it('reports MariaDB-only functions against MySQL', function () {
-        $q = Q\Func::jsonQuery(Q::n('doc'), Q::string('$.a'));
-        expect($q)->toRenderSql("JSON_QUERY(doc, '$.a')", null, Target::mariaDb());
-        expect($q)->toFailValidationFor(Target::mysql(), 'JSON_QUERY requires MariaDB');
+    it('renders and validates MySQL-only functions', function (Exp $exp, string $sql, string $feature) {
+        expect($exp)->toRenderSql($sql, null, Target::mysql());
+        expect($exp)->toFailValidationFor(Target::mariaDb(), $feature . ' requires MySQL');
+    })->with([
+        'regexpLike' => [fn () => Q\Func::regexpLike(Q::n('a'), Q::string('^x')), "REGEXP_LIKE(a, '^x')", 'REGEXP_LIKE'],
+        'regexpLike matchType' => [fn () => Q\Func::regexpLike(Q::n('a'), Q::string('^x'), Q::string('i')), "REGEXP_LIKE(a, '^x', 'i')", 'REGEXP_LIKE'],
+        'grouping' => [fn () => Q\Func::grouping(Q::n('a'), Q::n('b')), 'GROUPING(a, b)', 'GROUPING'],
+        'anyValue' => [fn () => Q\Func::anyValue(Q::n('name')), 'ANY_VALUE(name)', 'ANY_VALUE'],
+        'jsonSchemaValid' => [fn () => Q\Func::jsonSchemaValid(Q::n('schema'), Q::n('doc')), 'JSON_SCHEMA_VALID(`schema`, doc)', 'JSON_SCHEMA_VALID'],
+        'jsonSchemaValidationReport' => [fn () => Q\Func::jsonSchemaValidationReport(Q::n('s'), Q::n('doc')), 'JSON_SCHEMA_VALIDATION_REPORT(s, doc)', 'JSON_SCHEMA_VALIDATION_REPORT'],
+        'jsonStorageSize' => [fn () => Q\Func::jsonStorageSize(Q::n('doc')), 'JSON_STORAGE_SIZE(doc)', 'JSON_STORAGE_SIZE'],
+        'jsonStorageFree' => [fn () => Q\Func::jsonStorageFree(Q::n('doc')), 'JSON_STORAGE_FREE(doc)', 'JSON_STORAGE_FREE'],
+        'randomBytes' => [fn () => Q\Func::randomBytes(Q::int(16)), 'RANDOM_BYTES(16)', 'RANDOM_BYTES'],
+    ]);
+
+    it('renders and validates MariaDB-only functions', function (Exp $exp, string $sql, string $feature) {
+        expect($exp)->toRenderSql($sql, null, Target::mariaDb());
+        expect($exp)->toFailValidationFor(Target::mysql(), $feature . ' requires MariaDB');
+    })->with([
+        'jsonQuery' => [fn () => Q\Func::jsonQuery(Q::n('doc'), Q::string('$.a')), "JSON_QUERY(doc, '$.a')", 'JSON_QUERY'],
+        'jsonExists' => [fn () => Q\Func::jsonExists(Q::n('doc'), Q::string('$.a')), "JSON_EXISTS(doc, '$.a')", 'JSON_EXISTS'],
+        'toChar' => [fn () => Q\Func::toChar(Q::n('d'), Q::string('YYYY-MM-DD')), "TO_CHAR(d, 'YYYY-MM-DD')", 'TO_CHAR'],
+        'addMonths' => [fn () => Q\Func::addMonths(Q::n('d'), Q::int(3)), 'ADD_MONTHS(d, 3)', 'ADD_MONTHS'],
+        'monthsBetween' => [fn () => Q\Func::monthsBetween(Q::n('a'), Q::n('b')), 'MONTHS_BETWEEN(a, b)', 'MONTHS_BETWEEN'],
+        'chr' => [fn () => Q\Func::chr(Q::int(65)), 'CHR(65)', 'CHR'],
+        'oct' => [fn () => Q\Func::oct(Q::int(8)), 'OCT(8)', 'OCT'],
+    ]);
+
+    it('uses a MySQL-only GROUPING with WITH ROLLUP', function () {
+        expect(
+            Q::select(Q::n('country'), Q\Func::sum(Q::n('amount')), Q\Func::grouping(Q::n('country')))
+                ->from(Q::n('sales'))
+                ->groupBy(Q::n('country'))->withRollup(),
+        )->toRenderSql(
+            'SELECT country, SUM(amount), GROUPING(country) FROM sales GROUP BY country WITH ROLLUP',
+            null,
+            Target::mysql(),
+        );
     });
 });
